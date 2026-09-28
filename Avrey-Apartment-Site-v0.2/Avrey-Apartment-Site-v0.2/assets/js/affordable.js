@@ -1,0 +1,3 @@
+"use strict";
+async function check(e){e.preventDefault();const f=e.currentTarget;const out=document.getElementById("affordableResult");out.textContent="Checking HUD income limits…";out.className="status";try{const result=await ApartmentApi.jsonp("publicAffordableCheck",{floorplanId:f.floorplanId.value.trim(),householdSize:Number(f.householdSize.value),annualIncome:Number(f.annualIncome.value)});out.innerHTML=`<strong>${SiteUtil.escapeHtml(result.summary||"")}</strong><br>${SiteUtil.escapeHtml(result.detail||"")}`;out.className="status "+(result.appearsWithinLimit?"good":"bad");}catch(err){out.textContent=err.message;out.className="status bad";}}
+document.addEventListener("DOMContentLoaded",()=>document.getElementById("affordableForm")?.addEventListener("submit",check));
