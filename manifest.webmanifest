@@ -1,0 +1,9 @@
+{
+  "name": "Avrey Client Messages",
+  "short_name": "Client Messages",
+  "start_url": "/messages/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#1d4ed8",
+  "icons": []
+}
