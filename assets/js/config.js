@@ -7,7 +7,7 @@ window.APARTMENT_SITE_CONFIG = {
   agentName: "Avrey Anderson",
   contactEmail: "Avrey@apartment-pros.com",
   // Optional public phone shown on the site. Leave blank to hide it.
-  contactPhone: "",
+  contactPhone: "936-730-5122",
   // After deploying the Apps Script backend, the mobile admin app is the same /exec URL plus ?admin=mobile.
   adminAppUrl: "",
   listingsPageSize: 500
