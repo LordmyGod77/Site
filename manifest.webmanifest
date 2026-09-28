@@ -1,0 +1,10 @@
+{
+  "name": "Avrey Anderson Real Estate",
+  "short_name": "Avrey Real Estate",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#1d4ed8",
+  "icons": []
+}
