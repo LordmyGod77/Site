@@ -1,6 +1,6 @@
 window.APARTMENT_SITE_CONFIG = {
   // Paste the deployed Apps Script /exec URL here after deploying backend/LocatorBackend-Website-v0.3.gs.
-  apiUrl: "PASTE_APPS_SCRIPT_EXEC_URL_HERE",
+  apiUrl: "https://script.google.com/macros/s/AKfycbxIUhl0u7qOx2tGijuBlzjNLmhU5MFDvaXFbtxyhXbp1-USlS4caTxwKw9jGfW8znf5iA/exec",
   scheduleBaseUrl: "", // blank = use this deployed site; set a full URL only if you intentionally want an external scheduler
   brandName: "Avrey Anderson Real Estate",
   locatorBrand: "Apartment Pros",
