@@ -1,5 +1,0 @@
-"use strict";
-async function check(e){e.preventDefault();const f=e.currentTarget;const out=document.getElementById("affordableResult");out.textContent="Checking HUD income limits…";out.className="status";try{const result=await ApartmentApi.jsonp("publicAffordableCheck",{floorplanId:f.floorplanId.value.trim(),householdSize:Number(f.householdSize.value)});const income=Number(f.annualIncome.value),limit=Number(result.incomeLimit),within=Number.isFinite(limit)&&limit>0&&income<=limit;
- out.innerHTML=`<strong>${SiteUtil.escapeHtml(within?"Income appears within the recorded limit.":"Income appears above the recorded limit.")}</strong><br>Household of ${SiteUtil.escapeHtml(result.householdSize)} • ${SiteUtil.escapeHtml(result.amiPercent)}% AMI limit: ${SiteUtil.money(limit)} annually.<br>${SiteUtil.escapeHtml(result.detail||"")}`;
- out.className="status "+(within?"good":"bad");}catch(err){out.textContent=err.message;out.className="status bad";}}
-document.addEventListener("DOMContentLoaded",()=>document.getElementById("affordableForm")?.addEventListener("submit",check));
