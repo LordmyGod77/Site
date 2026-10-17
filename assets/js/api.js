@@ -40,7 +40,7 @@
       if(status?.found && !["Received","Processing"].includes(status.status)) return status;
       await new Promise(r=>setTimeout(r,intervalMs));
     }
-    return {found:true,status:"Processing",submissionId};
+    return {found:false,status:"Unconfirmed",submissionId};
   }
   window.ApartmentApi={jsonp,postForm,pollSubmission};
 })();
