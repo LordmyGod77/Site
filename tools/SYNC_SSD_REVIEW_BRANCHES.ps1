@@ -24,7 +24,12 @@ function Q([string]$value) {
   return "'" + $value.Replace("'", "'\''") + "'"
 }
 function BashRun([string]$command) {
-  $output = & $Bash "-lc" $command 2>&1
+  # Windows PowerShell 5.1 treats Git's normal fetch/status stderr progress as
+  # NativeCommandError. Use the actual process exit code for success/failure.
+  $previousPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try { $output = & $Bash "-lc" $command 2>&1 }
+  finally { $ErrorActionPreference = $previousPreference }
   if ($LASTEXITCODE -ne 0) {
     throw ("Git operation stopped safely (exit " + $LASTEXITCODE + "): " + $command + [Environment]::NewLine + ($output -join [Environment]::NewLine))
   }
