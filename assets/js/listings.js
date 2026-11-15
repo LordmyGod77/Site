@@ -82,5 +82,11 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("DOMContentLoaded",()=>{
   ["q","city","beds","maxRent","housingType","available","creditIssues","evictionIssues","affordable"].forEach(id=>document.getElementById(id).addEventListener(id==="q"||id==="maxRent"?"input":"change",applyFilters));
+  const params=new URLSearchParams(location.search);
+  if(params.get("affordable")==="1")document.getElementById("affordable").checked=true;
+  if(params.get("secondChance")==="1"){
+    const disclaimer=document.querySelector(".search-disclaimer");
+    if(disclaimer)disclaimer.insertAdjacentText("afterbegin","Need second-chance help? Select credit or eviction issues to see only verified options, or contact your locator to check other properties. ");
+  }
   loadListings();
 });
