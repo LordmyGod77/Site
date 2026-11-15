@@ -47,6 +47,8 @@ function VerifyRepo([hashtable]$spec) {
   if (-not (Test-Path -LiteralPath (Join-Path $spec.Path ".git"))) { throw "Not a Git checkout: $($spec.Path)" }
   $expected = UnixPath $spec.Path
   $actual = (Git $spec.Path "rev-parse --show-toplevel").TrimEnd("/")
+  # Git for Windows may return D:/folder, while Bash uses /d/folder.
+  if ($actual -match '^[A-Za-z]:/') { $actual = UnixPath $actual }
   if ($actual -ine $expected.TrimEnd("/")) { throw "Unexpected checkout root: $actual" }
   $remote = Git $spec.Path "remote get-url origin"
   $pattern = "(?i)github\.com[:/]+LordmyGod77/" + [regex]::Escape($spec.OwnerRepo) + "(\.git)?$"
