@@ -2,6 +2,12 @@
 let allListings=[];
 const esc=()=>SiteUtil.escapeHtml;
 function supportYes(s,key){return Boolean(s&&s[key]===true);}
+function housingTypeOf(x){
+  const type=String(x.support?.housingType||"").trim();
+  if(["Conventional","Affordable","55+","Student"].includes(type))return type;
+  if(x.support?.affordableProgram)return "Affordable";
+  return "";
+}
 function areaMap(x){
   const m=x.areaMap;
   if(!m||!Number.isFinite(Number(m.latitude))||!Number.isFinite(Number(m.longitude)))return '<div class="map-fallback">General area: '+esc()(x.city||"Location available on request")+'</div>';
@@ -17,6 +23,10 @@ function listingCard(x){
   const badges=[];if(x.availableNow)badges.push('<span class="badge green">Available now</span>');
   if(x.specialSummary)badges.push('<span class="badge orange">Special</span>');
   for(const [key,label] of [["oneApp","OneApp"],["theGuarantors","TheGuarantors"],["jetty","Jetty"],["libertyRent","Liberty Rent"],["rhino","Rhino"],["leap","Leap"],["insurent","Insurent"],["cosign","Cosign"]])if(supportYes(x.support,key))badges.push(`<span class="badge">${label}</span>`);
+  const type=housingTypeOf(x);
+  badges.unshift(type?'<span class="badge housing">'+u(type)+' housing</span>':'<span class="badge unverified">Housing type unverified</span>');
+  if(supportYes(x.support,"creditIssuesConsidered"))badges.push('<span class="badge green">Credit issues considered</span>');
+  if(supportYes(x.support,"evictionIssuesConsidered"))badges.push('<span class="badge green">Eviction issues considered</span>');
   if(x.support?.affordableProgram)badges.push('<span class="badge green">Income-restricted program</span>');
   const id=u(x.floorplanId||""),schedule=SiteUtil.scheduleUrl(x.floorplanId),detail=SiteUtil.listingUrl(x);
   return `<article class="listing-card"><a class="listing-media" href="${u(detail)}" aria-label="View ${u(x.communityName||x.floorplanName||"apartment")}">${img}</a><div class="listing-body"><div class="listing-title"><a href="${u(detail)}">${u(x.communityName||"Apartment community")}</a></div>
@@ -30,20 +40,31 @@ function listingCard(x){
    <button class="btn secondary share-listing" type="button" data-share-url="${u(schedule)}">Share</button></div></div></article>`;
 }
 function applyFilters(){
-  const q=document.getElementById("q").value.trim().toLowerCase(),city=document.getElementById("city").value,beds=document.getElementById("beds").value,
-   max=Number(document.getElementById("maxRent").value||0),available=document.getElementById("available").checked,
-   approval=document.getElementById("approval").checked,affordable=document.getElementById("affordable").checked;
+  const q=document.getElementById("q").value.trim().toLowerCase();
+  const city=document.getElementById("city").value;
+  const beds=document.getElementById("beds").value;
+  const max=Number(document.getElementById("maxRent").value||0);
+  const housingType=document.getElementById("housingType").value;
+  const available=document.getElementById("available").checked;
+  const affordable=document.getElementById("affordable").checked;
+  const creditIssues=document.getElementById("creditIssues").checked;
+  const evictionIssues=document.getElementById("evictionIssues").checked;
   const filtered=allListings.filter(x=>{
-    const hay=[x.communityName,x.floorplanName,x.city,x.zip].join(" ").toLowerCase();if(q&&!hay.includes(q))return false;
+    const hay=[x.communityName,x.floorplanName,x.city,x.zip].join(" ").toLowerCase();
+    if(q&&!hay.includes(q))return false;
     if(city&&x.city!==city)return false;
     if(beds!==""&&((beds==="4"&&Number(x.beds)<4)||(beds!=="4"&&Number(x.beds)!==Number(beds))))return false;
-    const rent=Number(x.netEffectiveRent||x.baseRent||0);if(max&&rent&&rent>max)return false;
+    const rent=Number(x.netEffectiveRent||x.baseRent||0);
+    if(max&&rent&&rent>max)return false;
     if(available&&!x.availableNow)return false;
-    if(approval&&!(x.support?.oneApp||x.support?.theGuarantors||x.support?.jetty||x.support?.libertyRent||x.support?.rhino||x.support?.leap||x.support?.insurent||x.support?.cosign))return false;
-    if(affordable&&!x.support?.affordableProgram)return false;return true;
+    if(housingType&&housingTypeOf(x)!==housingType)return false;
+    if(affordable&&housingTypeOf(x)!=="Affordable"&&!x.support?.affordableProgram)return false;
+    if(creditIssues&&!supportYes(x.support,"creditIssuesConsidered"))return false;
+    if(evictionIssues&&!supportYes(x.support,"evictionIssuesConsidered"))return false;
+    return true;
   });
-  document.getElementById("count").textContent=`${filtered.length} listing${filtered.length===1?"":"s"}`;
-  document.getElementById("listingGrid").innerHTML=filtered.length?filtered.map(listingCard).join(""):'<div class="empty-state">No listings match these filters.</div>';
+  document.getElementById("count").textContent=filtered.length+" listing"+(filtered.length===1?"":"s");
+  document.getElementById("listingGrid").innerHTML=filtered.length?filtered.map(listingCard).join(""):'<div class="empty-state">No listings currently match these verified filters. A property may still consider your situation even if it has not been verified. <a href="../custom-search/?help=assistance">Get free help checking options</a>.</div>';
 }
 async function loadListings(){
   const status=document.getElementById("loadStatus");
@@ -60,6 +81,6 @@ document.addEventListener("click",async e=>{
   const url=share.dataset.shareUrl;try{if(navigator.share)await navigator.share({title:"Apartment option",url});else await navigator.clipboard.writeText(url);}catch(_){}
 });
 document.addEventListener("DOMContentLoaded",()=>{
-  ["q","city","beds","maxRent","available","approval","affordable"].forEach(id=>document.getElementById(id).addEventListener(id==="q"||id==="maxRent"?"input":"change",applyFilters));
+  ["q","city","beds","maxRent","housingType","available","creditIssues","evictionIssues","affordable"].forEach(id=>document.getElementById(id).addEventListener(id==="q"||id==="maxRent"?"input":"change",applyFilters));
   loadListings();
 });
