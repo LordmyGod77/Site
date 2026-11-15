@@ -30,3 +30,11 @@ Community-level PropertySupport rows apply as defaults. Floorplan-level rows can
 - The existing public custom-search form sends guest-card/search inquiries through the current Apps Script backend. `assistanceType` gives a priority label to agent notification emails after the backend upgrade, not a guaranteed response time.
 - The call button uses the public agent phone already configured on the site.
 - Existing direct links to old public pages are preserved with redirects to `/listings/`.
+
+## Anonymous listing titles (additional requirement)
+
+- The public browser title, image link label, tour summary, and floorplan picker now use only bedroom count and general location (e.g. `1-bedroom apartment in South Austin, Austin, TX 78704`). City + ZIP is the safe fallback. No mapped community name or marketing floorplan name is used.
+- The reviewed `backend/LocatorBackend-v0.5.gs` now returns placeholder `communityName` and generic `floorplanName`, plus `privacyContract: anonymous-v1`. **Deploy this backend before claiming anonymity**. The older legacy `backend/LocatorBackend-Website-v0.3.gs` still returns mapped community names and raw media URLs and must not be re-deployed as the public endpoint.
+- In `PropertySupport`, `PublicAreaLabel` is optional and `PublicAreaLabelApproved` must be `Yes` for a broad neighborhood label like `South Austin` to appear. No location label is inferred from a property name or arbitrary map position. Run `locatorUpgrade()` after confirming the target spreadsheet to add these optional columns.
+- Public-generated SEO pages now use generic titles, descriptions, links, and structured-data names. The generator fails closed if the backend doesn't mark each public listing as `anonymous-v1`. Rebuild from a **clean output directory** to avoid publishing stale pages with names from previous builds. The site's static listing paths must be generated and deployed before 'View floorplan' links resolve.
+- The live public website and Apps Script deployment have not been changed by this PR. This is not a substitute for the planned verified renter login, server-side address authorization, or guest-card-on-website-navigation workflow. Existing public media and specials still need manual privacy review for identifying content.
