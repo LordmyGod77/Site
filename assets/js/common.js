@@ -155,5 +155,10 @@
   function listingUrl(listing){ return siteUrl(listingPath(listing)); }
 
   document.addEventListener("DOMContentLoaded",renderShell);
+  // Shared entry dialog applies to every public page without copying markup.
+  const authScript=document.createElement("script");
+  authScript.src=siteUrl("assets/js/renter-portal.js");
+  authScript.defer=true;
+  document.head.appendChild(authScript);
   window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,publicLocation,publicListingTitle,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
 })();
