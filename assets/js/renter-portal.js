@@ -90,6 +90,7 @@
       state.user=user?.emailVerified?user:null;state.profile=null;
       if(state.user){try{await loadProfile();}catch(err){msg(err.message,true);}}
       refreshHeader();
+      if(state.profile&&!state.pendingAction)document.getElementById("renterAuthDialog")?.close();
       if(state.profile&&state.pendingAction){const action=state.pendingAction;state.pendingAction=null;document.getElementById("renterAuthDialog")?.close();startAction(action.id,action.intent);}
     });
     if(sdk.isSignInWithEmailLink(state.auth,location.href)){
