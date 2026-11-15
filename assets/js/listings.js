@@ -108,25 +108,24 @@ async function loadListings(){
   try{
     status.textContent="Loading apartment options…";
     const api=String(window.APARTMENT_SITE_CONFIG?.renterApiUrl||"").replace(/\/+$/,"");
-    let data;
-    if(api){
-      const response=await fetch(api+"/api/public/listing-previews",{mode:"cors",cache:"no-store"});
-      if(!response.ok)throw Error("The verified listing preview API is unavailable (HTTP "+response.status+").");
-      const result=await response.json();data=result.data||result;
-    }else{
-      // Legacy preview still serves names in API response; client ignores them.
-      // The v0.5 anonymous backend must be deployed before production use.
-      data=await ApartmentApi.jsonp("publicSiteListings",{criteria:{availableOnly:false}});
-    }
-    allListings=Array.isArray(data.results)?data.results:[];
+    // D1 is the sole listing authority. The legacy Apps Script feed contains
+    // records whose scrape and city/ZIP provenance cannot be verified, so it
+    // must never be used as a public browse fallback.
+    if(!api)throw Error("The verified D1 search feed is not connected in this preview. No unverified communities are shown. Configure the reviewed staging Worker to load your scraped city/ZIP listings and approved media.");
+    const response=await fetch(api+"/api/public/listing-previews",{mode:"cors",cache:"no-store"});
+    if(!response.ok)throw Error("The verified listing preview API is unavailable (HTTP "+response.status+").");
+    const result=await response.json();
+    const data=result.data||result;
+    if(data.privacyContract!=="anonymous-v1")throw Error("The public listing contract is out of date.");
+    allListings=Array.isArray(data.results)?data.results.filter(x=>
+      x.privacyContract==="anonymous-v1"&&/^[0-9]{5}$/.test(String(x.zip||""))&&
+      String(x.city||"").trim()&&String(x.state||"").trim()):[];
     const cities=[...new Set(allListings.map(x=>x.city).filter(Boolean))].sort();
     document.getElementById("city").innerHTML='<option value="">All cities</option>'+cities.map(c=>'<option value="'+esc()(c)+'">'+esc()(c)+'</option>').join("");
     status.classList.add("hidden");
     document.getElementById("count").textContent="";
-    if(!api && allListings.length){
-      const message=document.getElementById("mediaSourceNotice");
-      if(message){message.textContent="This local preview is using the older search feed. The approved Cloudflare photo/video feed becomes available after the reviewed Worker is connected.";message.classList.remove("hidden");}
-    }
+    const message=document.getElementById("mediaSourceNotice");
+    if(message){message.textContent="Only active, configured communities with a completed scrape and a verified city/ZIP are shown. Property names and original media URLs are private.";message.classList.remove("hidden");}
     applyFilters();
   }catch(err){status.textContent="Listings could not be loaded: "+err.message;status.className="status bad";}
 }
