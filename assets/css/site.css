@@ -126,3 +126,5 @@
 .ap-map-dialog .ap-map-circle{width:66%;height:66%}
 .ap-map-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);font-size:28px;filter:drop-shadow(0 1px 1px white)}
 .ap-entry-notice{font-size:13px;color:#3c6570;line-height:1.5}
+
+.ap-greeting{font-weight:800;color:#147840;font-size:17px;margin:4px 0 14px}
