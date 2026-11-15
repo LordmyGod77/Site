@@ -52,3 +52,46 @@ Community-level PropertySupport rows apply as defaults. Floorplan-level rows can
 - The Cloudflare implementation lives on the private repository's feature/renter-public-api-v1-20261114 branch. Review its cloud-worker/RENTER_PORTAL_STAGING_CHECKLIST.md before any migration or deployment.
 - To test live images/video and account creation, stage an isolated D1/R2 Worker Preview, configure Firebase test domains and preview CORS, and run guest-card testing only against an approved internal test recipient.
 - No production Worker, database, Google/Firebase configuration, or live website has been changed. Draft PR #2 must not be merged until staged end-to-end tests pass.
+
+
+# Phase 3: scraped-community eligibility, city/ZIP normalization and SSD sync
+
+## Confirmed root cause and fix
+
+- The Cloudflare scraper's saveScrapeResults previously updated the community address and name but **not** city/state/ZIP. That explains "Area pending verification" even when a full street address exists in D1.
+- The companion Worker branch now parses city/state/ZIP conservatively from a full, comma-delimited U.S. address at read time. New scrape writes also populate blank city/state/ZIP in the existing D1 community columns; createCommunity normalizes fields when the initial address is complete.
+- Public results require: active community, nonblank street address, active floorplan, at least one ACTIVE scraper configuration and at least one recorded SUCCESSFUL scrape, and a valid city+state+5-digit ZIP. Missing/incomplete addresses fail closed. This is a deliberate exclusion, not proof a community does not exist.
+- No arbitrary ZIP-to-city inference, neighborhood guessing, or city center approximation. Optional "Northwest Austin" and similar broad labels remain explicitly approved metadata; otherwise the title contains real city/state/ZIP from stored address.
+- Public media IDs also require those conditions. Internal Desktop Manager and Scraper sources keep their existing community IDs, floorplan IDs, property media and permissions.
+
+## Cross-reference checklist (same D1 source of truth)
+
+| Dependent component | Contract after this change |
+| --- | --- |
+| Cloud Worker saveScrapeResults + createCommunity | Existing community address/city/state/ZIP columns; safe automatic normalization |
+| Cloud Worker public listing-previews + media | Only active, configured, successfully scraped communities; explicit anonymous + eligibility contract |
+| Website listings | Uses verified D1 feed only; no Apps Script public listing fallback |
+| Website schedule-tour | Searches the verified D1 feed; no arbitrary floorplan ID public picker |
+| Worker legacy publicSiteListings/publicSiteFloorplan + /api/public/floorplans | Hardened public responses; full internal/admin details unchanged |
+| Static SEO builder | Uses verified D1 public-preview route, not legacy JSONP; refuses missing location/eligibility contract |
+| Desktop Manager / Scraper / Ad Maker | Existing internal IDs, D1/R2 records and admin endpoints preserved; no running desktop code overwritten |
+| Firebase renter portal | Verified email + full name and phone required before private property details; backend PATCH /api/renters/me saves the profile |
+| SSD project | SYNC_TO_SSD.bat creates/updates detached review worktrees inside _review/GitHub in the MAIN project folder |
+
+## One-click SSD review sync
+
+After fetching this website branch into the existing local preview, double-click SYNC_TO_SSD.bat at the root of that preview checkout. It creates:
+
+- D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext\_review\GitHub\Site
+- D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext\_review\GitHub\Platform
+
+Both are detached, checked, review-only Git worktrees. They can be opened in VS Code and Live Server. The updater refuses to overwrite an edited preview and never checks out code over the active Desktop Manager, scraper, Worker, or existing website checkout.
+
+When both PRs have passed staging tests and been merged, update the active checkouts separately with clean-tree, fast-forward-only pulls. Do NOT copy a review tree over operating scripts or redeploy the cloud-worker before its isolated D1/R2 migration/guest-card tests.
+
+## Verification and known blockers
+
+- Syntax and mocked contract checks passed for city/ZIP parsing, configured-scrape query assertions, anonymity, and approved-only image/video routing. This is NOT a live D1 content audit or a successful media load from the real R2 bucket.
+- The staging Cloudflare Worker and Firebase config have not yet been deployed. Until configured, the preview deliberately displays the missing verified-feed message rather than anonymously listing unverified communities.
+- See cloud-worker/scripts/audit-public-eligibility.sql in the private branch for a read-only location/eligibility/media audit. Run privately, not on the public site.
+- No direct filesystem write to the user's external SSD is possible through the GitHub connector. The local sync button performs that step on their PC.
