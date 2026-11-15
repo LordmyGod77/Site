@@ -133,7 +133,7 @@
     const areaPart=area&&area.toLowerCase()!==city.toLowerCase()?area:"";
     const town=[areaPart,city].filter(Boolean).join(", ");
     const region=[state,zip].filter(Boolean).join(" ");
-    return [town,region].filter(Boolean).join(", ")||"Central Texas";
+    return [town,region].filter(Boolean).join(", ")||"Area pending verification";
   }
 
   function publicListingTitle(listing){
@@ -152,7 +152,11 @@
     return `apartments/${city}/${zip}/apartment-${id}/`;
   }
 
-  function listingUrl(listing){ return siteUrl(listingPath(listing)); }
+  // Shareable on-site floorplan preview works even before generated SEO
+  // pages have been published. Never link to the external property website.
+  function listingUrl(listing){
+    return siteUrl("listings/?floorplan-id="+encodeURIComponent(String(listing?.floorplanId||"")));
+  }
 
   document.addEventListener("DOMContentLoaded",renderShell);
   // Shared entry dialog applies to every public page without copying markup.
