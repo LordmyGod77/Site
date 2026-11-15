@@ -29,8 +29,9 @@ function listingCard(x){
   if(supportYes(x.support,"evictionIssuesConsidered"))badges.push('<span class="badge green">Eviction issues considered</span>');
   if(x.support?.affordableProgram)badges.push('<span class="badge green">Income-restricted program</span>');
   const id=u(x.floorplanId||""),schedule=SiteUtil.scheduleUrl(x.floorplanId),detail=SiteUtil.listingUrl(x);
-  return `<article class="listing-card"><a class="listing-media" href="${u(detail)}" aria-label="View ${u(x.communityName||x.floorplanName||"apartment")}">${img}</a><div class="listing-body"><div class="listing-title"><a href="${u(detail)}">${u(x.communityName||"Apartment community")}</a></div>
-   <div class="listing-meta">${u(x.floorplanName||"Apartment")} • ${u(x.beds??"?")} bd • ${u(x.baths??"?")} ba${x.sqft?" • "+u(x.sqft)+" sq ft":""}</div>
+  const title=u(SiteUtil.publicListingTitle(x));
+  return `<article class="listing-card"><a class="listing-media" href="${u(detail)}" aria-label="View ${title}">${img}</a><div class="listing-body"><div class="listing-title"><a href="${u(detail)}">${title}</a></div>
+   <div class="listing-meta">${u(x.beds??"?")} bd • ${u(x.baths??"?")} ba${x.sqft?" • "+u(x.sqft)+" sq ft":""}</div>
    <div class="rent">${SiteUtil.money(x.netEffectiveRent||x.baseRent)}</div>
    <div class="listing-meta">${u([x.city,x.state,x.zip].filter(Boolean).join(", "))}</div>
    ${x.specialSummary?'<div class="listing-meta"><strong>Special:</strong> '+u(x.specialSummary)+'</div>':""}
@@ -50,7 +51,7 @@ function applyFilters(){
   const creditIssues=document.getElementById("creditIssues").checked;
   const evictionIssues=document.getElementById("evictionIssues").checked;
   const filtered=allListings.filter(x=>{
-    const hay=[x.communityName,x.floorplanName,x.city,x.zip].join(" ").toLowerCase();
+    const hay=[x.areaLabel,x.city,x.state,x.zip,SiteUtil.publicListingTitle(x)].filter(Boolean).join(" ").toLowerCase();
     if(q&&!hay.includes(q))return false;
     if(city&&x.city!==city)return false;
     if(beds!==""&&((beds==="4"&&Number(x.beds)<4)||(beds!=="4"&&Number(x.beds)!==Number(beds))))return false;
