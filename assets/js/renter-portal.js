@@ -19,12 +19,15 @@
       '<div class="portal-icon" aria-hidden="true">⌂</div>'+
       '<p class="portal-eyebrow">APARTMENT PROS · FREE LOCATING</p>'+
       '<h2>Find your place. Make the search yours.</h2>'+
-      '<p>Log in or create an account for refined results, saved contact details, and verified property information. No account is needed to browse general apartment listings.</p>'+
+      '<p>Sign in or create your free renter account with your full name, phone number, and a verified email. You can still browse general listings without signing in.</p>'+
       '<div class="portal-login-actions">'+
+      '<label for="renterFullName">Full name</label><input id="renterFullName" type="text" autocomplete="name" placeholder="First and last name" maxlength="170" required>'+
+      '<label for="renterPhone">Phone number</label><input id="renterPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(512) 555-0123" maxlength="35" required>'+
       '<button type="button" id="renterGoogle" class="btn portal-google">Continue with Google</button>'+
       '<div class="portal-or">or receive a secure sign-in link</div>'+
       '<label for="renterEmail">Your email address</label><input id="renterEmail" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254">'+
       '<button type="button" id="renterEmailLink" class="btn primary">Email me a sign-in link</button>'+
+      '<button type="button" id="renterSaveProfile" class="btn primary hidden">Save my name & phone</button>'+
       '</div><div id="renterAuthStatus" class="portal-status" role="status" aria-live="polite"></div>'+
       '<button type="button" id="renterBrowse" class="portal-guest">Browse without an account</button>'+
       '<p class="portal-fine">Your email must be verified before private property details can be shown. Apartment locating is free to renters.</p></div>';
@@ -34,14 +37,55 @@
     outer.addEventListener("click",event=>{if(event.target===outer)outer.close();});
     outer.querySelector("#renterGoogle").addEventListener("click",signInGoogle);
     outer.querySelector("#renterEmailLink").addEventListener("click",signInEmail);
+    outer.querySelector("#renterSaveProfile").addEventListener("click",saveVerifiedProfile);
   }
   function openWelcome(text=""){
     shell();const d=document.getElementById("renterAuthDialog");
     d.querySelector("h2").textContent="Find your place. Make the search yours.";
     d.querySelector(".portal-login-actions").classList.remove("hidden");
     d.querySelector("#renterSignOut")?.classList.add("hidden");
+    showEntryControls(d);
     msg(text||(!enabled()?"Account verification is being configured. You can browse listings or request free assistance in the meantime.":""));
     if(!d.open)d.showModal();
+  }
+  function showEntryControls(d){
+    for(const id of ["renterGoogle","renterEmailLink","renterEmail"]){d.querySelector("#"+id)?.classList.remove("hidden");}
+    d.querySelector("#renterSaveProfile")?.classList.add("hidden");
+    d.querySelector(".portal-or")?.classList.remove("hidden");
+    d.querySelector('label[for="renterEmail"]')?.classList.remove("hidden");
+  }
+  function showProfileCompletion(){
+    shell();const d=document.getElementById("renterAuthDialog");
+    d.querySelector("h2").textContent="Complete your free renter account";
+    d.querySelector(".portal-login-actions").classList.remove("hidden");
+    d.querySelector("#renterFullName").value ||= [state.profile?.firstName,state.profile?.lastName].filter(Boolean).join(" ");
+    d.querySelector("#renterPhone").value ||= state.profile?.phone||"";
+    for(const id of ["renterGoogle","renterEmailLink","renterEmail"]){d.querySelector("#"+id)?.classList.add("hidden");}
+    d.querySelector("#renterSaveProfile")?.classList.remove("hidden");
+    d.querySelector(".portal-or")?.classList.add("hidden");
+    d.querySelector('label[for="renterEmail"]')?.classList.add("hidden");
+    msg("Your email is verified. Enter your full name and phone number to finish registration and save your contact details.");
+    if(!d.open)d.showModal();
+  }
+  async function saveVerifiedProfile(){
+    const d=document.getElementById("renterAuthDialog");
+    const fullName=String(d?.querySelector("#renterFullName")?.value||"").trim();
+    const phone=String(d?.querySelector("#renterPhone")?.value||"").trim();
+    if(fullName.split(/\s+/).length<2||phone.replace(/\D/g,"").length<10){
+      msg("Please enter both first and last name and a valid phone number.",true);return;
+    }
+    const button=d.querySelector("#renterSaveProfile");
+    try{
+      button.disabled=true;
+      msg("Saving your verified renter profile…");
+      const record=await backend("/api/renters/me","PATCH",{fullName,phone});
+      state.profile=record.user;
+      refreshHeader();
+      document.dispatchEvent(new CustomEvent("renter-session-changed",{detail:{authenticated:true,firstName:record.user.firstName}}));
+      d.close();
+      if(state.pendingAction){const pending=state.pendingAction;state.pendingAction=null;startAction(pending.id,pending.intent);}
+    }catch(err){msg(err.message||"Could not save your profile.",true);}
+    finally{button.disabled=false;}
   }
   function refreshHeader(){
     document.getElementById("renterHeaderControls")?.remove();
@@ -55,8 +99,9 @@
     wrap.append(button);nav.append(wrap);
   }
   function openAccount(){
+    if(state.profile?.needsProfile){showProfileCompletion();return;}
     shell();const d=document.getElementById("renterAuthDialog");
-    d.querySelector("h2").textContent="Welcome back, "+esc(state.profile?.firstName||state.user?.displayName?.split(/\s+/)[0]||"friend")+"!";
+    d.querySelector("h2").textContent="Welcome back, "+(state.profile?.firstName||state.user?.displayName?.split(/\s+/)[0]||"friend")+"!";
     d.querySelector(".portal-login-actions").classList.add("hidden");
     msg("Your verified account is active. Property addresses can be requested through your account; websites are released only after the guest card has been sent.");
     let out=d.querySelector("#renterSignOut");
@@ -90,6 +135,7 @@
       state.user=user?.emailVerified?user:null;state.profile=null;
       if(state.user){try{await loadProfile();}catch(err){msg(err.message,true);}}
       refreshHeader();
+      if(state.profile?.needsProfile){showProfileCompletion();return;}
       if(state.profile&&!state.pendingAction)document.getElementById("renterAuthDialog")?.close();
       if(state.profile&&state.pendingAction){const action=state.pendingAction;state.pendingAction=null;document.getElementById("renterAuthDialog")?.close();startAction(action.id,action.intent);}
     });
@@ -110,7 +156,8 @@
     try{
       msg("Opening Google sign-in…");
       await state.sdk.signInWithPopup(state.auth,new state.sdk.GoogleAuthProvider());
-      document.getElementById("renterAuthDialog")?.close();
+      // Do not close: the verified user must finish name and phone if missing.
+
     }catch(err){msg(err.message||"Google sign-in did not complete.",true);}
   }
   async function signInEmail(){
@@ -157,6 +204,7 @@
   async function startAction(floorplanId,intent="website"){
     if(!floorplanId)return;
     if(!state.profile){state.pendingAction={id:floorplanId,intent};openWelcome("Please verify your email to continue. You can still browse general listings.");return;}
+    if(state.profile.needsProfile){state.pendingAction={id:floorplanId,intent};showProfileCompletion();return;}
     const d=actionDialog();d.dataset.floorplanId=floorplanId;d.dataset.intent=intent;
     d.querySelector("#renterActionForm").classList.remove("hidden");
     d.querySelector("#renterActionResult").classList.add("hidden");
