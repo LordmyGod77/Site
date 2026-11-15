@@ -123,16 +123,37 @@
       .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80) || "apartment";
   }
 
+  // Public listing labels use only broad geography and bedroom count. Never
+  // fall back to mapped community names or marketing floorplan names.
+  function publicLocation(listing){
+    const area=String(listing?.areaLabel||"").trim();
+    const city=String(listing?.city||"").trim();
+    const state=String(listing?.state||"").trim();
+    const zip=String(listing?.zip||"").trim();
+    const areaPart=area&&area.toLowerCase()!==city.toLowerCase()?area:"";
+    const town=[areaPart,city].filter(Boolean).join(", ");
+    const region=[state,zip].filter(Boolean).join(" ");
+    return [town,region].filter(Boolean).join(", ")||"Central Texas";
+  }
+
+  function publicListingTitle(listing){
+    const n=Number(listing?.beds);
+    const beds=listing?.beds;
+    const generic=beds!==null&&beds!==undefined&&beds!==""&&Number.isInteger(n)&&n>=0&&n<=8
+      ? (n===0?"Studio apartment":n+"-bedroom apartment")
+      : "Apartment";
+    return generic+" in "+publicLocation(listing);
+  }
+
   function listingPath(listing){
     const city=slugify(listing?.city||"texas");
-    const community=slugify(listing?.communityName||"apartment-community");
-    const floorplan=slugify(listing?.floorplanName||"floorplan");
+    const zip=/^\d{5}(?:-\d{4})?$/.test(String(listing?.zip||""))?String(listing.zip).slice(0,5):"area";
     const id=String(listing?.floorplanId||"").replace(/^FP-/i,"").replace(/[^A-Za-z0-9]/g,"").slice(0,10).toLowerCase() || "listing";
-    return `apartments/${city}/${community}/${floorplan}-${id}/`;
+    return `apartments/${city}/${zip}/apartment-${id}/`;
   }
 
   function listingUrl(listing){ return siteUrl(listingPath(listing)); }
 
   document.addEventListener("DOMContentLoaded",renderShell);
-  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
+  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,publicLocation,publicListingTitle,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
 })();
