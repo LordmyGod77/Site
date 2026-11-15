@@ -4,8 +4,8 @@ let currentTourOptions=null;
 const floorplanId=()=>new URLSearchParams(location.search).get("floorplan-id")||"";
 function summary(x){
   const u=SiteUtil.escapeHtml;
-  return `<div class="panel"><span class="pill">Selected apartment</span><h2>Apartment option</h2>
-   <p class="muted">${u(x.floorplanName||"Apartment")} • ${u(x.beds??"?")} bed • ${u(x.baths??"?")} bath${x.sqft?" • "+u(x.sqft)+" sq ft":""}</p>
+  return `<div class="panel"><span class="pill">Selected apartment</span><h2>${u(SiteUtil.publicListingTitle(x))}</h2>
+   <p class="muted">${u(x.beds??"?")} bed • ${u(x.baths??"?")} bath${x.sqft?" • "+u(x.sqft)+" sq ft":""}</p>
    <p><strong>${SiteUtil.money(x.netEffectiveRent||x.baseRent)}</strong></p>
    <p class="muted">${u([x.city,x.state,x.zip].filter(Boolean).join(", "))}. The property name, address and website are sent privately after your guest card and tour request are successfully submitted.</p></div>`;
 }
@@ -14,7 +14,7 @@ async function init(){
   const id=floorplanId(); document.getElementById("floorplanId").value=id;
   if(!id){
     const picker=document.getElementById("floorplanPicker"); const form=document.getElementById("tourForm"); picker.classList.remove("hidden"); form.classList.add("hidden");
-    try{const data=await ApartmentApi.jsonp("publicSiteListings",{criteria:{availableOnly:false}});const rows=Array.isArray(data.results)?data.results:[];const sel=document.getElementById("floorplanSelect");sel.innerHTML='<option value="">Choose a floorplan</option>'+rows.map(x=>`<option value="${SiteUtil.escapeHtml(x.floorplanId)}">${SiteUtil.escapeHtml((x.floorplanName||"Apartment")+" — "+SiteUtil.money(x.netEffectiveRent||x.baseRent))}</option>`).join("");document.getElementById("chooseFloorplan").onclick=()=>{if(sel.value)location.href=SiteUtil.scheduleUrl(sel.value);};document.getElementById("listingSummary").innerHTML='<div class="status">Choose a listing above to load its details and request a tour.</div>';}catch(e){document.getElementById("listingSummary").innerHTML=`<div class="status bad">${SiteUtil.escapeHtml(e.message)}</div>`;}
+    try{const data=await ApartmentApi.jsonp("publicSiteListings",{criteria:{availableOnly:false}});const rows=Array.isArray(data.results)?data.results:[];const sel=document.getElementById("floorplanSelect");sel.innerHTML='<option value="">Choose a floorplan</option>'+rows.map(x=>`<option value="${SiteUtil.escapeHtml(x.floorplanId)}">${SiteUtil.escapeHtml(SiteUtil.publicListingTitle(x)+" — "+SiteUtil.money(x.netEffectiveRent||x.baseRent))}</option>`).join("");document.getElementById("chooseFloorplan").onclick=()=>{if(sel.value)location.href=SiteUtil.scheduleUrl(sel.value);};document.getElementById("listingSummary").innerHTML='<div class="status">Choose a listing above to load its details and request a tour.</div>';}catch(e){document.getElementById("listingSummary").innerHTML=`<div class="status bad">${SiteUtil.escapeHtml(e.message)}</div>`;}
     return;
   }
   try{ currentFloorplan=await ApartmentApi.jsonp("publicSiteFloorplan",{floorplanId:id}); document.getElementById("listingSummary").innerHTML=summary(currentFloorplan); const options=await ApartmentApi.jsonp("publicTourOptions",{floorplanId:id}); currentTourOptions=options; const slot=document.getElementById("tourSlot"); if(Array.isArray(options.slots)&&options.slots.length){slot.innerHTML='<option value="">Choose a live/cached slot</option>'+options.slots.map(s=>`<option value="${SiteUtil.escapeHtml(typeof s==="string"?s:(s.value||s.label||""))}">${SiteUtil.escapeHtml(typeof s==="string"?s:(s.label||s.value||""))}</option>`).join(""); document.getElementById("slotWrap").classList.remove("hidden");} }
