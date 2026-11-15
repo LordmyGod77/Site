@@ -79,7 +79,9 @@ function applyFilters(){
   const max=Number(document.getElementById("maxRent").value||0),type=document.getElementById("housingType").value;
   const available=document.getElementById("available").checked,affordable=document.getElementById("affordable").checked;
   const credit=document.getElementById("creditIssues").checked,eviction=document.getElementById("evictionIssues").checked;
+  const requestedFloorplan=new URLSearchParams(location.search).get("floorplan-id")||"";
   const rows=allListings.filter(x=>{
+    if(requestedFloorplan&&x.floorplanId!==requestedFloorplan)return false;
     const hay=[x.areaLabel,x.city,x.state,x.zip,SiteUtil.publicListingTitle(x)].filter(Boolean).join(" ").toLowerCase();
     if(q&&!hay.includes(q))return false;
     if(city&&x.city!==city)return false;
@@ -117,6 +119,10 @@ async function loadListings(){
     document.getElementById("city").innerHTML='<option value="">All cities</option>'+cities.map(c=>'<option value="'+esc()(c)+'">'+esc()(c)+'</option>').join("");
     status.classList.add("hidden");
     document.getElementById("count").textContent="";
+    if(!api && allListings.length){
+      const message=document.getElementById("mediaSourceNotice");
+      if(message){message.textContent="This local preview is using the older search feed. The approved Cloudflare photo/video feed becomes available after the reviewed Worker is connected.";message.classList.remove("hidden");}
+    }
     applyFilters();
   }catch(err){status.textContent="Listings could not be loaded: "+err.message;status.className="status bad";}
 }
