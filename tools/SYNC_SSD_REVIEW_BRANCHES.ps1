@@ -1,87 +1,116 @@
-# SYNC_SSD_REVIEW_BRANCHES.ps1
-# Read-only for operating project checkouts: fetch + refresh detached review worktrees.
-# Requires Git for Windows Bash at D:\bin\bash.exe; no force, reset, clean or merge.
-param([string]$ProjectRoot = "D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext")
+# Apartment Platform SSD Git updater (review by default; apply ONLY with -Apply).
+# Does not clone repositories, create worktrees, stash, reset, clean, force-push or deploy.
+# Both repositories remain in their existing locations on the D: SSD.
+param(
+  [string]$ProjectRoot = "D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext",
+  [switch]$Apply
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-
 $Bash = "D:\bin\bash.exe"
-if (-not (Test-Path -LiteralPath $Bash)) {
-  throw "Git Bash not found at $Bash. Install Git for Windows or adjust this script's Bash path."
-}
-$Root = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd("\")
-$SiteRepo = Join-Path $Root "ApartmentPlatform-Website"
-$ReviewRoot = Join-Path $Root "_review\GitHub"
-if (-not (Test-Path -LiteralPath (Join-Path $Root ".git"))) { throw "Private repository missing in $Root" }
-if (-not (Test-Path -LiteralPath (Join-Path $SiteRepo ".git"))) { throw "Website repository missing in $SiteRepo" }
+if (-not (Test-Path -LiteralPath $Bash)) { throw "Git Bash missing at $Bash" }
 
-function UnixPath([string]$WindowsPath) {
-  $full = [IO.Path]::GetFullPath($WindowsPath)
-  if ($full -notmatch '^([A-Za-z]):[\\/](.*)$') { throw "Expected a Windows drive path: $WindowsPath" }
+$Root = ([IO.Path]::GetFullPath($ProjectRoot)).TrimEnd([char]'\')
+$SiteRepo = Join-Path $Root "ApartmentPlatform-Website"
+$Repos = @(
+  @{ Name="Private platform"; Path=$Root; OwnerRepo="BusinessDOCS"; Branch="apartment-platform-source" },
+  @{ Name="Website"; Path=$SiteRepo; OwnerRepo="Site"; Branch="main" }
+)
+
+function UnixPath([string]$value) {
+  $full = [IO.Path]::GetFullPath($value)
+  if ($full -notmatch '^([A-Za-z]):[\\/](.*)$') { throw "Not a supported Windows drive path: $value" }
   return "/" + $Matches[1].ToLowerInvariant() + "/" + ($Matches[2] -replace '\\','/')
 }
-function Q([string]$value) {
+function QuoteBash([string]$value) {
   return "'" + $value.Replace("'", "'\''") + "'"
 }
 function BashRun([string]$command) {
-  # Windows PowerShell 5.1 treats Git's normal fetch/status stderr progress as
-  # NativeCommandError. Use the actual process exit code for success/failure.
-  $previousPreference = $ErrorActionPreference
+  $old = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  try { $output = & $Bash "-lc" $command 2>&1 }
-  finally { $ErrorActionPreference = $previousPreference }
-  if ($LASTEXITCODE -ne 0) {
-    throw ("Git operation stopped safely (exit " + $LASTEXITCODE + "): " + $command + [Environment]::NewLine + ($output -join [Environment]::NewLine))
+  try {
+    $output = & $Bash "-lc" $command 2>&1
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $old
+  }
+  if ($exitCode -ne 0) {
+    throw ("Git stopped with exit code " + $exitCode + ": " + $command + [Environment]::NewLine + ($output -join [Environment]::NewLine))
   }
   return ($output -join [Environment]::NewLine).Trim()
 }
-function GitRun([string]$repo,[string]$args) {
-  $posix = UnixPath $repo
-  return BashRun ("git -c safe.directory=" + (Q $posix) + " -C " + (Q $posix) + " " + $args)
+function Git([string]$directory, [string]$command) {
+  $path = UnixPath $directory
+  return BashRun ("git -c safe.directory=" + (QuoteBash $path) + " -C " + (QuoteBash $path) + " " + $command)
 }
-function EnsureExpectedRemote([string]$repo,[string]$name) {
-  $remote = GitRun $repo "remote get-url origin"
-  if ($remote -notmatch ("(?i)github\.com[:/]+LordmyGod77/" + [regex]::Escape($name) + "(\.git)?$")) {
-    throw "Wrong origin for $name, so no sync was performed: $remote"
-  }
+function VerifyRepo([hashtable]$spec) {
+  if (-not (Test-Path -LiteralPath (Join-Path $spec.Path ".git"))) { throw "Not a Git checkout: $($spec.Path)" }
+  $expected = UnixPath $spec.Path
+  $actual = (Git $spec.Path "rev-parse --show-toplevel").TrimEnd("/")
+  if ($actual -ine $expected.TrimEnd("/")) { throw "Unexpected checkout root: $actual" }
+  $remote = Git $spec.Path "remote get-url origin"
+  $pattern = "(?i)github\.com[:/]+LordmyGod77/" + [regex]::Escape($spec.OwnerRepo) + "(\.git)?$"
+  if ($remote -notmatch $pattern) { throw "Unexpected remote for $($spec.Name): $remote" }
 }
-function SyncOne([string]$repo,[string]$name,[string]$branch,[string]$outputDir) {
-  Write-Host ("Checking " + $name + " / " + $branch) -ForegroundColor Cyan
-  EnsureExpectedRemote $repo $name
-  $ref = "refs/remotes/origin/" + $branch
-  $target = UnixPath $outputDir
-  $remoteBranch = "refs/heads/" + $branch + ":" + $ref
-  [void](GitRun $repo ("fetch origin " + (Q $remoteBranch)))
-  if (Test-Path -LiteralPath $outputDir) {
-    if (-not (Test-Path -LiteralPath (Join-Path $outputDir ".git"))) {
-      throw "Preview destination already exists but is not a Git worktree: $outputDir"
-    }
-    $found = GitRun $outputDir "rev-parse --show-toplevel"
-    if ($found.TrimEnd("/") -ine $target.TrimEnd("/")) {
-      throw "Preview folder belongs to a different repository: $found"
-    }
-    $dirty = GitRun $outputDir "status --porcelain"
-    if ($dirty) {
-      throw ("Uncommitted preview changes found at " + $outputDir + ". Nothing was overwritten: " + $dirty)
-    }
-    [void](GitRun $outputDir ("switch --detach " + (Q $ref)))
-  } else {
-    [void](GitRun $repo ("worktree add --detach " + (Q $target) + " " + (Q $ref)))
-  }
-  $sha = GitRun $outputDir "rev-parse --short HEAD"
-  Write-Host ("Synced: " + $outputDir + " (" + $sha + ")") -ForegroundColor Green
-}
-# Keep review worktrees out of the active project's Git commit without changing
-# the tracked .gitignore or deleting/copying any operating project files.
-$exclude = Join-Path $Root ".git\info\exclude"
-if (-not (Test-Path -LiteralPath $exclude)) { throw "Main repository Git exclude file missing: $exclude" }
-$existing = Get-Content -LiteralPath $exclude -Raw
-if ($existing -notmatch '(?m)^/_review/?$') { Add-Content -LiteralPath $exclude -Value "/_review/" }
-New-Item -ItemType Directory -Force -Path $ReviewRoot | Out-Null
+Write-Host ""
+Write-Host "Apartment Platform | GitHub source update" -ForegroundColor Cyan
+Write-Host "Operating project: $Root"
+Write-Host ("Mode: " + $(if ($Apply) { "APPLY APPROVED COMMITS IN PLACE" } else { "REVIEW ONLY - no working files changed" }))
+Write-Host ""
 
-SyncOne $SiteRepo "Site" "feature/search-housing-types-second-chance-20261114" (Join-Path $ReviewRoot "Site")
-SyncOne $Root "BusinessDOCS" "feature/renter-public-api-v1-20261114" (Join-Path $ReviewRoot "Platform")
-Write-Host "Both preview branches are on the SSD inside your main project folder." -ForegroundColor Green
-Write-Host ("View Site: " + (Join-Path $ReviewRoot "Site\listings\index.html"))
-Write-Host ("Review Cloudflare Worker code: " + (Join-Path $ReviewRoot "Platform\cloud-worker\src"))
-Write-Host "Your operating Desktop Manager, scraper, production Worker files and existing website checkout were NOT overwritten."
+# Preflight both repositories before updating either one.
+$plans = @()
+foreach ($spec in $Repos) {
+  VerifyRepo $spec
+  $remoteRef = "refs/remotes/origin/" + $spec.Branch
+  $fetchSpec = "refs/heads/" + $spec.Branch + ":" + $remoteRef
+  [void](Git $spec.Path ("fetch origin " + (QuoteBash $fetchSpec)))
+  $branch = Git $spec.Path "branch --show-current"
+  $localSha = Git $spec.Path "rev-parse HEAD"
+  $remoteSha = Git $spec.Path ("rev-parse " + (QuoteBash $remoteRef))
+  $dirty = Git $spec.Path "status --porcelain --untracked-files=no"
+  $hasChanges = $localSha -ne $remoteSha
+  Write-Host ("[" + $spec.Name + "] Branch: " + $branch + ", expected: " + $spec.Branch) -ForegroundColor Cyan
+  Write-Host ("  Current: " + $localSha.Substring(0,12) + " | GitHub: " + $remoteSha.Substring(0,12))
+  if ($dirty) { Write-Host "  Local tracked modifications are present. They will not be overwritten." -ForegroundColor Yellow }
+  if ($hasChanges) {
+    Write-Host "  Proposed incoming changes:" -ForegroundColor White
+    $log = Git $spec.Path ("log --oneline -n 10 HEAD.." + (QuoteBash $remoteRef))
+    if ($log) { Write-Host $log }
+    $summary = Git $spec.Path ("diff --stat HEAD " + (QuoteBash $remoteRef))
+    if ($summary) { Write-Host $summary }
+  } else {
+    Write-Host "  Already current with approved GitHub branch." -ForegroundColor Green
+  }
+  if ($Apply) {
+    if ($branch -cne $spec.Branch) { throw "Wrong active branch for $($spec.Name). No project files changed." }
+    if ($dirty) { throw "Uncommitted tracked edits in $($spec.Name). Commit/review them before applying. No project files changed." }
+    if ($hasChanges) {
+      try { [void](Git $spec.Path ("merge-base --is-ancestor HEAD " + (QuoteBash $remoteRef))) }
+      catch { throw "Local and remote history diverged in $($spec.Name). Fast-forward is unsafe; nothing has been applied." }
+    }
+  }
+  $plans += @{ Spec=$spec; Ref=$remoteRef; HasChanges=$hasChanges; LocalSha=$localSha }
+}
+if (-not $Apply) {
+  Write-Host ""
+  Write-Host "REVIEW FINISHED. No extra folders, worktrees or project copies were created." -ForegroundColor Green
+  Write-Host "Review draft code in GitHub Pull Requests. Only run APPLY_APPROVED_UPDATES.bat after the PRs are tested and merged." -ForegroundColor Yellow
+  exit 0
+}
+
+# Git tags are tiny references to the prior commit, NOT extra project copies.
+$tagTime = Get-Date -Format "yyyyMMdd-HHmmss"
+foreach ($plan in $plans) {
+  if (-not $plan.HasChanges) { continue }
+  $spec = $plan.Spec
+  $suffix = $spec.OwnerRepo.ToLowerInvariant()
+  $tag = "ssd-before-approved-update-" + $tagTime + "-" + $suffix
+  [void](Git $spec.Path ("tag " + (QuoteBash $tag) + " HEAD"))
+  Write-Host ("Backup checkpoint tag: " + $tag) -ForegroundColor DarkCyan
+  [void](Git $spec.Path ("merge --ff-only " + (QuoteBash $plan.Ref)))
+  Write-Host ("Updated working files IN PLACE: " + $spec.Path) -ForegroundColor Green
+}
+Write-Host ""
+Write-Host "Source update complete. No extra copies, no Cloudflare deployment, no database writes." -ForegroundColor Green
+Write-Host "Run the desktop scraper/manager smoke tests and website preview checks before deploying any changes." -ForegroundColor Yellow
