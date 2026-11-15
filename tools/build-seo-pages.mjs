@@ -12,16 +12,19 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const slug=v=>String(v||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'apartment';
 const money=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?`$${Math.round(n).toLocaleString('en-US')}`:'Call for pricing';};
 const shortId=v=>String(v||'').replace(/^FP-/i,'').replace(/[^A-Za-z0-9]/g,'').slice(0,10).toLowerCase()||'listing';
-const publicLocation=x=>[ [x.areaLabel,x.city].filter((v,i,a)=>v&&!(i===0&&String(v).toLowerCase()===String(x.city||'').toLowerCase())).join(', '),[x.state,x.zip].filter(Boolean).join(' ') ].filter(Boolean).join(', ')||'Central Texas';
+const publicLocation=x=>[ [x.areaLabel,x.city].filter((v,i,a)=>v&&!(i===0&&String(v).toLowerCase()===String(x.city||'').toLowerCase())).join(', '),[x.state,x.zip].filter(Boolean).join(' ') ].filter(Boolean).join(', ')||'Area pending verification';
 const publicTitle=x=>{const n=Number(x.beds);const kind=x.beds!==null&&x.beds!==undefined&&x.beds!==''&&Number.isInteger(n)&&n>=0&&n<=8?(n===0?'Studio apartment':n+'-bedroom apartment'):'Apartment';return kind+' in '+publicLocation(x);};
 const listingPath=x=>`apartments/${slug(x.city||'texas')}/${/^\d{5}(?:-\d{4})?$/.test(String(x.zip||''))?String(x.zip).slice(0,5):'area'}/apartment-${shortId(x.floorplanId)}/`;
 
 async function load(){
  if(INPUT){const raw=JSON.parse(await fs.readFile(path.resolve(INPUT),'utf8'));return Array.isArray(raw)?raw:(raw.results||[]);}
- if(!API)throw Error('Pass --api=https://.../exec or --input=public-listings.json');
- const cb='seoCb'; const url=new URL(API); url.searchParams.set('action','publicSiteListings'); url.searchParams.set('criteria',JSON.stringify({availableOnly:false})); url.searchParams.set('callback',cb);
- const res=await fetch(url,{headers:{'User-Agent':'ApartmentPros-SEO-Builder/0.5'}}); if(!res.ok)throw Error(`API HTTP ${res.status}`); const text=await res.text();
- const m=text.match(/^\s*seoCb\((.*)\);?\s*$/s); if(!m)throw Error('Unexpected JSONP response'); const parsed=JSON.parse(m[1]); const data=parsed?.data??parsed; return data?.results||[];
+ if(!API)throw Error('Pass --api=https://your-staging-worker/api/public/listing-previews or --input=approved-public-listings.json');
+ const endpoint=new URL(API);
+ if(endpoint.protocol!=='https:'||endpoint.pathname!=='/api/public/listing-previews')throw Error('SEO builder requires the verified D1 listing-preview endpoint, not Apps Script JSONP.');
+ const res=await fetch(endpoint,{headers:{'User-Agent':'ApartmentPros-Anonymous-SEO/1.0'}}); if(!res.ok)throw Error(`API HTTP ${res.status}`);
+ const data=await res.json();
+ if(data.privacyContract!=='anonymous-v1'||data.scrapeEligibility!=='configured-successful-scrape-v1')throw Error('Backend anonymous scrape-eligibility contract is missing.');
+ return data?.results||[];
 }
 
 function head({title,description,url,jsonld}){return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="${esc(url)}"><meta name="referrer" content="strict-origin-when-cross-origin"><meta property="og:type" content="website"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(url)}"><link rel="stylesheet" href="${ORIGIN}/assets/css/site.css"><script defer src="${ORIGIN}/assets/js/config.js"></script><script defer src="${ORIGIN}/assets/js/common.js"></script>${jsonld?`<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g,'\\u003c')}</script>`:''}</head>`;}
@@ -41,8 +44,9 @@ function listingHtml(x){
 function cityHtml(city,items){const citySlug=slug(city);const url=`${ORIGIN}/apartments/${citySlug}/`; const prices=items.map(x=>Number(x.netEffectiveRent||x.baseRent||0)).filter(n=>n>0);const low=prices.length?Math.min(...prices):0; const desc=`Browse ${items.length} current apartment floorplan option${items.length===1?'':'s'} in ${city}, Texas${low?`, with published pricing from ${money(low)}/month`:''}. Compare rent, floorplans, availability and specials.`; const cards=items.slice().sort((a,b)=>Number(a.netEffectiveRent||a.baseRent||1e12)-Number(b.netEffectiveRent||b.baseRent||1e12)).map(x=>`<article class="seo-mini-card"><h2><a href="${ORIGIN}/${listingPath(x)}">${esc(publicTitle(x))}</a></h2><p>${esc(publicLocation(x))} • ${esc(x.beds??'?')} bd • ${esc(x.baths??'?')} ba${x.sqft?` • ${esc(x.sqft)} sq ft`:''}</p><strong>${esc(money(x.netEffectiveRent||x.baseRent))}</strong></article>`).join(''); return head({title:`Apartments in ${city}, TX - Floorplans & Current Rent | Apartment Pros`,description:desc,url,jsonld:{"@context":"https://schema.org","@type":"CollectionPage","name":`Apartments in ${city}, Texas`,"url":url,"description":desc}})+layout(`<nav class="breadcrumbs"><a href="${ORIGIN}/">Home</a> / <a href="${ORIGIN}/listings/">Apartments</a></nav><span class="pill">Local apartment search</span><h1>Apartments in ${esc(city)}, Texas</h1><p class="seo-lede">${esc(desc)}</p><div class="seo-mini-grid">${cards}</div>`);}
 
 const input=await load();
-if(input.some(x=>x&&x.privacyContract!=='anonymous-v1')) throw Error('Refusing to generate public pages from a backend without the anonymous-v1 privacy contract. Deploy the reviewed anonymous backend first.');
-const listings=input.filter(x=>x&&x.floorplanId&&x.city);
+if(input.some(x=>x&&(x.privacyContract!=='anonymous-v1'||x.scrapeEligibility!=='configured-successful-scrape-v1')))
+  throw Error('Refusing to generate pages from listings without the verified configured-scrape contract.');
+const listings=input.filter(x=>x&&x.floorplanId&&String(x.city||"").trim()&&String(x.state||"").trim()&&/^\d{5}$/.test(String(x.zip||"")));
 if(!listings.length)throw Error('No SEO-eligible anonymous listings returned. Check the backend privacy contract and published city fields.');
 const urls=[`${ORIGIN}/`,`${ORIGIN}/listings/`];
 for(const x of listings){const rel=listingPath(x);const dir=path.join(ROOT,rel);await fs.mkdir(dir,{recursive:true});await fs.writeFile(path.join(dir,'index.html'),listingHtml(x));urls.push(`${ORIGIN}/${rel}`);}
