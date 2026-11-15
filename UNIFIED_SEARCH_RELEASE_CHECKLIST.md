@@ -76,16 +76,11 @@ Community-level PropertySupport rows apply as defaults. Floorplan-level rows can
 | Static SEO builder | Uses verified D1 public-preview route, not legacy JSONP; refuses missing location/eligibility contract |
 | Desktop Manager / Scraper / Ad Maker | Existing internal IDs, D1/R2 records and admin endpoints preserved; no running desktop code overwritten |
 | Firebase renter portal | Verified email + full name and phone required before private property details; backend PATCH /api/renters/me saves the profile |
-| SSD project | SYNC_TO_SSD.bat creates/updates detached review worktrees inside _review/GitHub in the MAIN project folder |
+| SSD project | SYNC_TO_SSD.bat fetches/reviews only; APPLY_APPROVED_UPDATES.bat fast-forwards approved commits in the existing operating folder after explicit confirmation |
 
 ## One-click SSD review sync
 
-After fetching this website branch into the existing local preview, double-click SYNC_TO_SSD.bat at the root of that preview checkout. It creates:
-
-- D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext\_review\GitHub\Site
-- D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext\_review\GitHub\Platform
-
-Both are detached, checked, review-only Git worktrees. They can be opened in VS Code and Live Server. The updater refuses to overwrite an edited preview and never checks out code over the active Desktop Manager, scraper, Worker, or existing website checkout.
+After fetching this website branch into the existing local preview, double-click SYNC_TO_SSD.bat to FETCH AND REVIEW CHANGES ONLY. It does not create extra folders. After both PRs are tested and merged, close the desktop software and use APPLY_APPROVED_UPDATES.bat to fast-forward the two current operating checkouts on D: in place. This requires clean, matching active branches, and saves a local Git tag pointing to the previous commit. Nothing deploys to Cloudflare automatically.
 
 When both PRs have passed staging tests and been merged, update the active checkouts separately with clean-tree, fast-forward-only pulls. Do NOT copy a review tree over operating scripts or redeploy the cloud-worker before its isolated D1/R2 migration/guest-card tests.
 
@@ -94,4 +89,8 @@ When both PRs have passed staging tests and been merged, update the active check
 - Syntax and mocked contract checks passed for city/ZIP parsing, configured-scrape query assertions, anonymity, and approved-only image/video routing. This is NOT a live D1 content audit or a successful media load from the real R2 bucket.
 - The staging Cloudflare Worker and Firebase config have not yet been deployed. Until configured, the preview deliberately displays the missing verified-feed message rather than anonymously listing unverified communities.
 - See cloud-worker/scripts/audit-public-eligibility.sql in the private branch for a read-only location/eligibility/media audit. Run privately, not on the public site.
-- No direct filesystem write to the user's external SSD is possible through the GitHub connector. The local sync button performs that step on their PC.
+- No direct filesystem write to the user's external SSD is possible through the GitHub connector. The guarded in-place apply button performs that step on their PC after both PRs pass tests and are merged.
+
+## Updated SSD source-control rule (supersedes earlier review-worktree instructions)
+
+Keep exactly one operating project checkout at D:\ApartmentPlatform-vNext-foundation\ApartmentPlatform-vNext and the nested independent website checkout at ApartmentPlatform-Website. The review button only fetches GitHub commits and prints the changes; it does not clone or create worktrees. The apply button checks branch, remote, tracked cleanliness, and fast-forward ancestry for BOTH repositories before updating either one. It records a lightweight local Git checkpoint tag, then advances source files in place. It does not deploy a Worker, modify D1, write to R2, or update running processes. Git cannot undo database changes or recover untracked/generated files without separate backups. Existing _review worktrees from an earlier version of the script are not removed automatically; inspect them before any cleanup.
