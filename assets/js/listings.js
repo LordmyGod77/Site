@@ -116,9 +116,10 @@ async function loadListings(){
     if(!response.ok)throw Error("The verified listing preview API is unavailable (HTTP "+response.status+").");
     const result=await response.json();
     const data=result.data||result;
-    if(data.privacyContract!=="anonymous-v1")throw Error("The public listing contract is out of date.");
+    if(data.privacyContract!=="anonymous-v1"||data.scrapeEligibility!=="configured-successful-scrape-v1")
+      throw Error("The verified scrape eligibility contract is not active on this backend.");
     allListings=Array.isArray(data.results)?data.results.filter(x=>
-      x.privacyContract==="anonymous-v1"&&/^[0-9]{5}$/.test(String(x.zip||""))&&
+      x.privacyContract==="anonymous-v1"&&x.scrapeEligibility==="configured-successful-scrape-v1"&&/^[0-9]{5}$/.test(String(x.zip||""))&&
       String(x.city||"").trim()&&String(x.state||"").trim()):[];
     const cities=[...new Set(allListings.map(x=>x.city).filter(Boolean))].sort();
     document.getElementById("city").innerHTML='<option value="">All cities</option>'+cities.map(c=>'<option value="'+esc()(c)+'">'+esc()(c)+'</option>').join("");
