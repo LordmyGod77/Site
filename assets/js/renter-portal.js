@@ -37,6 +37,9 @@
   }
   function openWelcome(text=""){
     shell();const d=document.getElementById("renterAuthDialog");
+    d.querySelector("h2").textContent="Find your place. Make the search yours.";
+    d.querySelector(".portal-login-actions").classList.remove("hidden");
+    d.querySelector("#renterSignOut")?.classList.add("hidden");
     msg(text||(!enabled()?"Account verification is being configured. You can browse listings or request free assistance in the meantime.":""));
     if(!d.open)d.showModal();
   }
