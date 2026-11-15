@@ -128,3 +128,10 @@
 .ap-entry-notice{font-size:13px;color:#3c6570;line-height:1.5}
 
 .ap-greeting{font-weight:800;color:#147840;font-size:17px;margin:4px 0 14px}
+
+/* Compact 12-mile area preview below each listing. */
+.listing-card .ap-map{height:154px;margin-top:4px}
+.listing-card .ap-map iframe{height:154px}
+.listing-card .ap-map-caption{font-size:10px}
+#loadMoreListings{display:block;width:min(100%,410px);margin:22px auto;background:#e2f4e7;color:#115d2a;border:1px solid #c0e2ce;font-weight:800;padding:14px}
+#loadMoreListings.hidden{display:none}
