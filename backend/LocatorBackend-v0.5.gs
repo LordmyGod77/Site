@@ -4830,7 +4830,8 @@ function locatorSetupOperationsSheets_() {
   locatorEnsureSheet_(spreadsheet, LOCATOR_SHEETS.PROPERTY_SUPPORT, [
     "CommunityID","FloorplanID","OneApp","TheGuarantors","Jetty","LibertyRent","Rhino","Leap","Insurent","Cosign",
     "AffordableProgram","AffordableAMIPercent","HudEntityID","HudYear","TourProvider","TourURL","TourAvailabilityJSON",
-    "SourceURL","VerifiedAt","Notes","PublicMediaURLs","PublicSpecialText"
+    "SourceURL","VerifiedAt","Notes","PublicMediaURLs","PublicSpecialText",
+    "HousingType","CreditIssuesConsidered","EvictionIssuesConsidered"
   ]);
 
   locatorEnsureSheet_(spreadsheet, LOCATOR_SHEETS.MESSAGE_CONTACTS, [
@@ -6304,9 +6305,22 @@ function locatorPublicSupportView_(row) {
     insurent: locatorTruthy_(locatorPick_(row,["Insurent"])),
     cosign: locatorTruthy_(locatorPick_(row,["Cosign"])),
     affordableProgram: String(locatorPick_(row,["AffordableProgram"]) || "").trim(),
+    housingType: locatorVerifiedHousingType_(row),
+    creditIssuesConsidered: locatorTruthy_(locatorPick_(row,["CreditIssuesConsidered"])),
+    evictionIssuesConsidered: locatorTruthy_(locatorPick_(row,["EvictionIssuesConsidered"])),
     affordableAmiPercent: locatorNullableNumber_(locatorPick_(row,["AffordableAMIPercent"])),
     verifiedAt: String(locatorPick_(row,["VerifiedAt"]) || "").trim()
   };
+}
+
+function locatorVerifiedHousingType_(row) {
+  const category=String(locatorPick_(row,["HousingType"])||"").trim().toLowerCase();
+  if (["conventional","market rate","market-rate"].indexOf(category)>=0) return "Conventional";
+  if (["affordable","income restricted","income-restricted"].indexOf(category)>=0) return "Affordable";
+  if (["55+","senior 55+","55 plus","55-plus"].indexOf(category)>=0) return "55+";
+  if (["student","student housing"].indexOf(category)>=0) return "Student";
+  if (String(locatorPick_(row,["AffordableProgram"])||"").trim()) return "Affordable";
+  return ""; // Do not assume conventional, 55+, student, or second-chance support.
 }
 
 function locatorTruthy_(value) {
@@ -6659,6 +6673,7 @@ function locatorPublicSubmitCustomSearch_(request) {
     throw new Error("Name, email, phone, preferred area and maximum rent are required.");
   const allowed=["Credit concerns","Rental debt / eviction questions","Criminal-record screening questions","Income qualification","Limited rental history"];
   const flags=Array.isArray(request.screeningFlags)?request.screeningFlags.filter(function(x){return allowed.indexOf(String(x))>=0;}).slice(0,5):[];
+  const assistanceType=["general","urgent","agent"].indexOf(String(request.assistanceType||"general"))>=0?String(request.assistanceType||"general"):"general";
   const incomeRange=String(request.incomeRange||"");
   if (["","Below $30k","$30k–$49k","$50k–$74k","$75k–$99k","$100k+","Prefer not to say"].indexOf(incomeRange)<0)
     throw new Error("Invalid income range.");
@@ -6702,6 +6717,7 @@ function locatorPublicSubmitCustomSearch_(request) {
   try {
     const agent=LOCATOR_MAIL_IDENTITY.replyTo;
     const body=["New custom apartment search: "+id,"Client: "+first+" "+last,"Email: "+email,"Phone: "+phone,
+      "Assistance requested: "+(assistanceType==="urgent"?"URGENT - quick move-in":assistanceType==="agent"?"Contact agent":"General apartment search"),
       "Desired area: "+area,"Max rent: $"+maxRent,"Beds: "+(beds===null?"Any":beds),"Move-in: "+String(request.moveInDate||""),
       "Optional income range: "+incomeRange,"Self-disclosed general screening topics: "+flags.join(", "),
       "Automatic matches: "+matches.map(function(x){return x.row.floorplanId;}).join(", "),"Status: "+status].join("\n");
