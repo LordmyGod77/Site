@@ -146,6 +146,9 @@
     d.querySelector(".portal-close").onclick=()=>d.close();
     d.querySelectorAll('[name="lookingFor"]').forEach(r=>r.addEventListener("change",()=>{
       const other=d.querySelector('[name="lookingFor"]:checked')?.value==="other";
+      d.querySelector('[name="firstName"]').value=other?"":state.profile?.firstName||"";
+      d.querySelector('[name="lastName"]').value=other?"":state.profile?.lastName||"";
+      d.querySelector('[name="phone"]').value=other?"":state.profile?.phone||"";
       d.querySelectorAll(".portal-other-only").forEach(el=>el.classList.toggle("hidden",!other));
       d.querySelector('[name="otherEmail"]').required=other;d.querySelector('[name="personConsent"]').required=other;
     }));
