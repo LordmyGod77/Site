@@ -2,6 +2,7 @@
 // Public listings are anonymous. Media and broad map centers originate in the
 // reviewed Cloudflare public preview API, never raw website scrape URLs.
 let allListings=[];
+let visibleLimit=24;
 const mediaSlideIndex=new Map();
 const esc=()=>SiteUtil.escapeHtml;
 const supportYes=(s,key)=>Boolean(s&&s[key]===true);
@@ -68,7 +69,7 @@ function listingCard(x){
     '<div class="rent">'+SiteUtil.money(x.netEffectiveRent||x.baseRent)+'</div>'+
     (x.specialSummary?'<div class="listing-meta"><strong>Special:</strong> '+u(x.specialSummary)+'</div>':'')+
     '<div class="badges">'+badges.join("")+'</div>'+
-    '<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">View approximate area map</button>'+
+    areaMap(x)+'<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">Enlarge map / View exact location when signed in</button>'+
     '<div class="listing-actions"><a class="btn secondary" href="'+u(detail)+'">View floorplan</a>'+
     '<button class="btn primary" type="button" data-guest-action="website" data-floorplan-id="'+fid+'">View website</button>'+
     '<button class="btn secondary" type="button" data-guest-action="tour" data-floorplan-id="'+fid+'">Tour</button>'+
@@ -96,8 +97,11 @@ function applyFilters(){
     return true;
   });
   document.getElementById("count").textContent=rows.length+" apartment option"+(rows.length===1?"":"s")+" found";
-  document.getElementById("listingGrid").innerHTML=rows.length?rows.map(listingCard).join(""):
+  const shown=rows.slice(0,visibleLimit);
+  document.getElementById("listingGrid").innerHTML=rows.length?shown.map(listingCard).join(""):
     '<div class="empty-state">No verified matches for this combination. A property with unknown policies may still consider you. <a href="../custom-search/?help=assistance">Ask for free assistance.</a></div>';
+  const more=document.getElementById("loadMoreListings");
+  if(more){more.classList.toggle("hidden",shown.length>=rows.length);more.textContent="Show more apartments · "+shown.length+" of "+rows.length;}
 }
 async function loadListings(){
   const status=document.getElementById("loadStatus");
@@ -180,6 +184,7 @@ document.addEventListener("click",e=>{
     root.replaceWith(el.firstElementChild);
     return;
   }
+  if(e.target.closest("#loadMoreListings")){visibleLimit+=24;applyFilters();return;}
   const help=e.target.closest("[data-help]");
   if(help){
     const item=helpCopy[help.dataset.help];if(!item)return;
@@ -197,7 +202,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("DOMContentLoaded",()=>{
   ["q","city","beds","maxRent","housingType","available","creditIssues","evictionIssues","affordable"].forEach(id=>{
     const field=document.getElementById(id);
-    field?.addEventListener(id==="q"||id==="maxRent"?"input":"change",applyFilters);
+    field?.addEventListener(id==="q"||id==="maxRent"?"input":"change",()=>{visibleLimit=24;applyFilters();});
   });
   mountHelp();
   const params=new URLSearchParams(location.search);
