@@ -50,7 +50,7 @@
 
   function nav(){
     const brand=escapeHtml((window.APARTMENT_SITE_CONFIG||{}).brandName||"Real Estate");
-    return `<header class="site-header"><nav class="nav"><a class="brand" href="${escapeHtml(siteUrl())}">${brand}</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="siteNavLinks">Menu</button><div id="siteNavLinks" class="nav-links">${navLink("listings/","Listings")}${navLink("services/","Services")}${navLink("approval-help/","Credit / Lease Help")}${navLink("affordable-housing/","Affordable Housing")}${navLink("about/","About")}${navLink("custom-search/","Free Custom Search")}${navLink("schedule-tour/","Schedule Tour")}</div></nav></header>`;
+    return `<header class="site-header"><nav class="nav"><a class="brand" href="${escapeHtml(siteUrl())}">${brand}</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="siteNavLinks">Menu</button><div id="siteNavLinks" class="nav-links">${navLink("listings/","Listings")}${navLink("services/","Services")}${navLink("about/","About")}${navLink("custom-search/","Free Custom Search")}${navLink("schedule-tour/","Schedule Tour")}</div></nav></header>`;
   }
 
   function footer(){
