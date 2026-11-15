@@ -41,7 +41,11 @@ function BashRun([string]$command) {
 }
 function Git([string]$directory, [string]$command) {
   $path = UnixPath $directory
-  return BashRun ("git -c safe.directory=" + (QuoteBash $path) + " -C " + (QuoteBash $path) + " " + $command)
+  $windowsPath = ([IO.Path]::GetFullPath($directory)).Replace([char]'\', [char]'/')
+  # Respect Git for Windows ownership checks in either pathname format.
+  return BashRun ("git -c safe.directory=" + (QuoteBash $windowsPath) +
+    " -c safe.directory=" + (QuoteBash $path) +
+    " -C " + (QuoteBash $path) + " " + $command)
 }
 function VerifyRepo([hashtable]$spec) {
   if (-not (Test-Path -LiteralPath (Join-Path $spec.Path ".git"))) { throw "Not a Git checkout: $($spec.Path)" }
