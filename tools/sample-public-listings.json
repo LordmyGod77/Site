@@ -17,7 +17,8 @@
       "images": [],
       "support": {},
       "areaLabel": "South Austin",
-      "privacyContract": "anonymous-v1"
+      "privacyContract": "anonymous-v1",
+      "scrapeEligibility": "configured-successful-scrape-v1"
     }
   ]
 }
