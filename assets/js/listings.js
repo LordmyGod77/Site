@@ -4,6 +4,7 @@
 let allListings=[];
 let visibleLimit=24;
 const mediaSlideIndex=new Map();
+const failedMedia=new Map();
 const esc=()=>SiteUtil.escapeHtml;
 const supportYes=(s,key)=>Boolean(s&&s[key]===true);
 const imageUrl=url=>{try{const p=new URL(url,location.href);return p.protocol==="https:"||p.origin===location.origin?p.href:"";}catch(_){return "";}};
@@ -34,8 +35,9 @@ function approvedMedia(x){
     x.privacyContract==="anonymous-v1"&&Array.isArray(x.images)
       ?x.images.map(url=>({type:"image",url}))
       :[]);
-  return list.filter(m=>m&&["image","video"].includes(m.type)&&imageUrl(m.url))
-    .slice(0,18).map(m=>({type:m.type,url:imageUrl(m.url)}));
+  const failed=failedMedia.get(x.floorplanId)||new Set();
+  return list.filter(m=>m&&["image","video"].includes(m.type)&&imageUrl(m.url)&&!failed.has(imageUrl(m.url)))
+    .slice(0,100).map(m=>({type:m.type,url:imageUrl(m.url)}));
 }
 function mediaPanel(x){
   const m=approvedMedia(x),fid=esc()(x.floorplanId||"");
@@ -46,7 +48,7 @@ function mediaPanel(x){
   const poster=m.find(item=>item.type==="image")?.url||"";
   const view=current.type==="video"
     ?'<video controls preload="metadata" playsinline '+(poster?'poster="'+esc()(poster)+'" ':'')+'src="'+esc()(current.url)+'" aria-label="Apartment video preview">Your browser does not support video.</video>'
-    :'<img loading="lazy" decoding="async" src="'+esc()(current.url)+'" alt="Approved apartment photo '+(index+1)+'" onerror="this.outerHTML=&apos;Photo temporarily unavailable&apos;">';
+    :'<img loading="lazy" decoding="async" src="'+esc()(current.url)+'" alt="Approved apartment photo '+(index+1)+'">';
   return '<div class="ap-media" data-media-id="'+fid+'">'+view+
     (m.length>1?'<button class="ap-arrow ap-prev" type="button" data-media-step="-1" aria-label="Previous media">‹</button><button class="ap-arrow ap-next" type="button" data-media-step="1" aria-label="Next media">›</button>':'')+
     '<span class="ap-counter">'+(index+1)+' / '+m.length+(current.type==="video"?" · Video":" · Photo")+'</span></div>';
@@ -172,6 +174,20 @@ function mountHelp(){
     else holder.insertBefore(btn,field);
   }
 }
+// A missing/broken R2 object should never strand the entire carousel.
+document.addEventListener("error",e=>{
+  const element=e.target;
+  if(!(element instanceof HTMLImageElement||element instanceof HTMLVideoElement))return;
+  const root=element.closest(".ap-media");if(!root)return;
+  const fid=root.dataset.mediaId,x=allListings.find(item=>item.floorplanId===fid);
+  if(!x)return;
+  const url=element.currentSrc||element.src;
+  if(!failedMedia.has(fid))failedMedia.set(fid,new Set());
+  failedMedia.get(fid).add(url);
+  mediaSlideIndex.set(fid,0);
+  const replacement=document.createElement("div");replacement.innerHTML=mediaPanel(x);
+  root.replaceWith(replacement.firstElementChild);
+},true);
 document.addEventListener("click",e=>{
   const slide=e.target.closest("[data-media-step]");
   if(slide){
