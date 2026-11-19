@@ -108,10 +108,22 @@ function applyFilters(){
 }
 async function loadListings(){
   const status=document.getElementById("loadStatus");
-  const api=String(window.APARTMENT_SITE_CONFIG?.renterApiUrl||"").replace(/\/+$/,"");
+  const cfg=window.APARTMENT_SITE_CONFIG||{};
+  const mediaApi=String(cfg.approvedMediaApiUrl||"").replace(/\/+$/,"");
+  const api=String(cfg.renterApiUrl||"").replace(/\/+$/,"");
   try{
     status.textContent="Loading apartment options…";
-    if(api){
+    if(mediaApi){
+      // Use only the D1/R2 approved-ad catalog. Do not show floorplans with zero approved media.
+      const response=await fetch(mediaApi+"/api/public/listing-previews",{mode:"cors",cache:"no-store"});
+      if(!response.ok)throw Error("Approved media catalog is unavailable (HTTP "+response.status+").");
+      const raw=await response.json(),data=raw.data||raw;
+      if(data.privacyContract!=="anonymous-v1"||data.scrapeEligibility!=="approved-media-v1")
+        throw Error("Public media approval contract mismatch.");
+      allListings=(Array.isArray(data.results)?data.results:[]).filter(x=>
+        x.privacyContract==="anonymous-v1"&&x.scrapeEligibility==="approved-media-v1"&&
+        approvedMedia(x).length>0);
+    }else if(api){
       const response=await fetch(api+"/api/public/listing-previews",{mode:"cors",cache:"no-store"});
       if(!response.ok)throw Error("Verified listing feed unavailable (HTTP "+response.status+").");
       const raw=await response.json(),data=raw.data||raw;
