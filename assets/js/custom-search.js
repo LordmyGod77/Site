@@ -1,6 +1,12 @@
 "use strict";
 document.addEventListener("DOMContentLoaded",()=>{
  const form=document.getElementById("customSearchForm"),status=document.getElementById("customStatus");form.submittedAt.value=Date.now();SiteUtil.mountTurnstile(form);
+ const help=new URLSearchParams(location.search).get("help");
+ const type=help==="urgent"?"urgent":help==="agent"?"agent":"general";
+ form.assistanceType.value=type;
+ const note=document.getElementById("assistanceIntro");
+ if(type==="urgent"){note.textContent="Need to move in quickly? Enter your earliest move-in date and contact details so I can prioritize your request.";note.classList.remove("hidden");}
+ else if(help==="assistance"||type==="agent"){note.textContent="Tell me what you need help with. Apartment locating and matching are free to renters.";note.classList.remove("hidden");}
  form.addEventListener("submit",async e=>{
   e.preventDefault();const button=form.querySelector('button[type="submit"]');
   if(!form.turnstileToken.value){status.textContent="Complete the security check first.";status.className="status bad";return;}
@@ -8,7 +14,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const req={action:"publicSubmitCustomSearch",submissionId,turnstileToken:form.turnstileToken.value,submittedAt:Number(form.submittedAt.value),website:form.website.value,
    lead:{firstName:form.firstName.value.trim(),lastName:form.lastName.value.trim(),email:form.email.value.trim(),phone:form.phone.value.trim()},
    preferredArea:form.preferredArea.value.trim(),maxRent:Number(form.maxRent.value),beds:form.beds.value===""?null:Number(form.beds.value),moveInDate:form.moveInDate.value,
-   incomeRange:form.incomeRange.value,screeningFlags:[...form.querySelectorAll('input[name="screeningFlag"]:checked')].map(x=>x.value)};
+   incomeRange:form.incomeRange.value,assistanceType:form.assistanceType.value,screeningFlags:[...form.querySelectorAll('input[name="screeningFlag"]:checked')].map(x=>x.value)};
   try{button.disabled=true;status.textContent="Submitting your request…";status.className="status";
    await ApartmentApi.postForm(req);const result=await ApartmentApi.pollSubmission(submissionId,{timeoutMs:45000});
    if(result.status==="Completed"){status.textContent="Your shortlist has been emailed. Check your inbox; reply to discuss any screening questions.";status.className="status good";}
