@@ -17,5 +17,8 @@ window.APARTMENT_SITE_CONFIG = {
   turnstileSiteKey: "67902356-S-54219865",
   // After deploying the Apps Script backend, the mobile admin app is the same /exec URL plus ?admin=mobile.
   adminAppUrl: "https://script.google.com/macros/s/AKfycbxIUhl0u7qOx2tGijuBlzjNLmhU5MFDvaXFbtxyhXbp1-USlS4caTxwKw9jGfW8znf5iA/exec?admin=mobile",
+  // Enable only after the separate approved-media Worker is deployed and its health/catalog verified.
+  // This controls the public gallery; it does NOT enable unfinished Firebase renter login.
+  approvedMediaApiUrl: "",
   listingsPageSize: 500
 };
