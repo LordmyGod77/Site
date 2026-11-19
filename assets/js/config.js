@@ -19,6 +19,6 @@ window.APARTMENT_SITE_CONFIG = {
   adminAppUrl: "https://script.google.com/macros/s/AKfycbxIUhl0u7qOx2tGijuBlzjNLmhU5MFDvaXFbtxyhXbp1-USlS4caTxwKw9jGfW8znf5iA/exec?admin=mobile",
   // Enable only after the separate approved-media Worker is deployed and its health/catalog verified.
   // This controls the public gallery; it does NOT enable unfinished Firebase renter login.
-  approvedMediaApiUrl: "",
+  approvedMediaApiUrl: "https://apartment-platform-public-media.avrey-platform.workers.dev",
   listingsPageSize: 500
 };
