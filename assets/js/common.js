@@ -64,7 +64,7 @@
     return `<footer class="footer"><div class="footer-inner"><nav class="footer-links" aria-label="Legal and consumer disclosures">
       <a href="${escapeHtml(siteUrl("privacy/"))}">Privacy Policy</a>
       <a href="${escapeHtml(siteUrl("terms/"))}">Terms & Conditions</a>${iabsLink}${cnLink}</nav>
-      <p>Pricing, availability, promotions and screening decisions are controlled by the housing provider. A tour request is not a confirmed booking.</p><a href="https://apartment-platform-api.avrey-platform.workers.dev/media">Owner login</a></div></footer>`;
+      <p>Pricing, availability, promotions and screening decisions are controlled by the housing provider. A tour request is not a confirmed booking.</p><a href="https://apartment-platform-api.avrey-platform.workers.dev/media" rel="noopener noreferrer">Private Advertising &amp; Walkthrough Studio</a></div></footer>`;
   }
   function openTourModal(id){
     if(!id)return;
