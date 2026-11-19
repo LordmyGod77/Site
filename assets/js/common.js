@@ -123,6 +123,23 @@
       .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80) || "apartment";
   }
 
+  // Show broad geography, never mapped property names in anonymous listing labels.
+  // Only show a neighborhood when it has been explicitly approved.
+  function publicLocation(listing){
+    const approved=listing?.privacyContract==="anonymous-v1"||listing?.areaLabelApproved===true||listing?.support?.publicAreaLabelApproved==="Yes";
+    const area=approved?String(listing?.areaLabel||"").trim():"";
+    const city=String(listing?.city||"").trim(),state=String(listing?.state||"").trim(),zip=String(listing?.zip||"").trim();
+    const place=[area&&area.toLowerCase()!==city.toLowerCase()?area:"",city].filter(Boolean).join(", ");
+    return [place,[state,zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")||"Area pending verification";
+  }
+
+  function publicListingTitle(listing){
+    const n=Number(listing?.beds);
+    const kind=listing?.beds!==null&&listing?.beds!==undefined&&listing?.beds!==""&&Number.isInteger(n)&&n>=0&&n<=8
+      ?(n===0?"Studio apartment":n+"-bedroom apartment"):"Apartment";
+    return kind+" in "+publicLocation(listing);
+  }
+
   function listingPath(listing){
     const city=slugify(listing?.city||"texas");
     const community=slugify(listing?.communityName||"apartment-community");
@@ -131,8 +148,9 @@
     return `apartments/${city}/${community}/${floorplan}-${id}/`;
   }
 
-  function listingUrl(listing){ return siteUrl(listingPath(listing)); }
+  // On-site query detail is available without unpublished static SEO pages.
+  function listingUrl(listing){ return siteUrl("listings/?floorplan-id="+encodeURIComponent(String(listing?.floorplanId||""))); }
 
   document.addEventListener("DOMContentLoaded",renderShell);
-  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
+  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,slugify,publicLocation,publicListingTitle,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
 })();
