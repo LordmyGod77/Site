@@ -20,7 +20,7 @@ function areaMap(x,{exact=false}={}){
   if(!m||!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180){
     return '<div class="ap-map-empty">Area map available after location verification. '+esc()(SiteUtil.publicLocation(x))+'</div>';
   }
-  const radiusMiles=exact?1.5:16;
+  const radiusMiles=exact?1.5:12;
   const dlat=radiusMiles/69.0;
   const dlon=radiusMiles/(69*Math.max(0.2,Math.cos(latitude*Math.PI/180)));
   const bbox=[longitude-dlon,latitude-dlat,longitude+dlon,latitude+dlat].map(n=>n.toFixed(5)).join(",");
@@ -132,7 +132,7 @@ async function loadListings(){
     if(notice){
       notice.textContent=api
         ?"Only configured, successfully scraped, verified-location listings and approved media appear here. Full details require authorization."
-        :"Using the existing listing catalog while the verified Cloudflare feed is prepared. Unverified photos and screening policies are not published; contact the agent for confirmation.";
+        :"Using the existing listing catalog while the verified Cloudflare feed is prepared. Photos await confirmed public-use rights; screening details should be reconfirmed with each property.";
       notice.classList.remove("hidden");
     }
     applyFilters();
