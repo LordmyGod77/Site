@@ -17,5 +17,11 @@ window.APARTMENT_SITE_CONFIG = {
   turnstileSiteKey: "67902356-S-54219865",
   // After deploying the Apps Script backend, the mobile admin app is the same /exec URL plus ?admin=mobile.
   adminAppUrl: "https://script.google.com/macros/s/AKfycbxIUhl0u7qOx2tGijuBlzjNLmhU5MFDvaXFbtxyhXbp1-USlS4caTxwKw9jGfW8znf5iA/exec?admin=mobile",
+  // Set to the deployed Cloudflare Worker API origin to activate approved D1/R2 media.
+  // Example: "https://api.your-domain.com" (must be a real, configured URL).
+  renterApiUrl: "",
+  // Firebase Auth web configuration is public configuration, not a server credential.
+  // Both Google and email-link sign-in remain unavailable until configured.
+  firebaseAuth: null,
   listingsPageSize: 500
 };

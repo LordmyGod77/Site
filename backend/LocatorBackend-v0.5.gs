@@ -4830,7 +4830,9 @@ function locatorSetupOperationsSheets_() {
   locatorEnsureSheet_(spreadsheet, LOCATOR_SHEETS.PROPERTY_SUPPORT, [
     "CommunityID","FloorplanID","OneApp","TheGuarantors","Jetty","LibertyRent","Rhino","Leap","Insurent","Cosign",
     "AffordableProgram","AffordableAMIPercent","HudEntityID","HudYear","TourProvider","TourURL","TourAvailabilityJSON",
-    "SourceURL","VerifiedAt","Notes","PublicMediaURLs","PublicSpecialText"
+    "SourceURL","VerifiedAt","Notes","PublicMediaURLs","PublicSpecialText",
+    "HousingType","CreditIssuesConsidered","EvictionIssuesConsidered",
+    "PublicAreaLabel","PublicAreaLabelApproved"
   ]);
 
   locatorEnsureSheet_(spreadsheet, LOCATOR_SHEETS.MESSAGE_CONTACTS, [
@@ -6175,10 +6177,10 @@ function locatorPublicSiteFloorplan_(floorplanId) {
 }
 
 function locatorPublicListingView_(item, community, media, supportIndex) {
-  // PUBLIC CONTRACT v0.5: community/floorplan DISPLAY NAMES may be public so
-  // each listing can have a meaningful indexable landing page. Still never return
-  // private community IDs, street address, source/site URLs, vendor URLs, leasing
-  // contacts, raw photos, or exact property coordinates.
+  // PUBLIC CONTRACT: anonymity applies to JSONP and static pages, not only UI labels.
+  // Never return mapped community names, marketed floorplan names, private IDs,
+  // exact addresses, property/source URLs, vendor URLs or contact details.
+  // Preserve the internal floorplanId solely as an opaque routing identifier.
   const fpKey = String(item.floorplanId || "");
   const cmKey = String(item.communityId || "");
   const support = supportIndex[fpKey] || supportIndex[cmKey] || {};
@@ -6188,13 +6190,16 @@ function locatorPublicListingView_(item, community, media, supportIndex) {
     latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 &&
     Boolean(community && community.latitude !== null && community.longitude !== null);
   const beds = item.beds;
-  const genericName = Number(beds) === 0 ? "Studio apartment" :
-    ((beds === null || beds === undefined || beds === "") ? "Apartment" :
-    String(beds) + " bedroom apartment");
+  const n = Number(beds);
+  const hasBeds = beds !== null && beds !== undefined && beds !== "" &&
+    Number.isInteger(n) && n >= 0 && n <= 8;
+  const genericName = hasBeds ? (n === 0 ? "Studio apartment" : n + "-bedroom apartment") : "Apartment";
   return {
     floorplanId: fpKey,
-    communityName: String((community && community.communityName) || "Apartment community").slice(0,120),
-    floorplanName: String(item.floorplanName || genericName).slice(0,120),
+    communityName: "Apartment community",  // public placeholder only, never database name
+    floorplanName: genericName,              // never expose the marketed plan name
+    areaLabel: locatorPublicAreaLabel_(support),
+    privacyContract: "anonymous-v1",
     beds: item.beds,
     baths: item.baths,
     sqft: item.sqft,
@@ -6304,9 +6309,35 @@ function locatorPublicSupportView_(row) {
     insurent: locatorTruthy_(locatorPick_(row,["Insurent"])),
     cosign: locatorTruthy_(locatorPick_(row,["Cosign"])),
     affordableProgram: String(locatorPick_(row,["AffordableProgram"]) || "").trim(),
+    housingType: locatorVerifiedHousingType_(row),
+    creditIssuesConsidered: locatorTruthy_(locatorPick_(row,["CreditIssuesConsidered"])),
+    evictionIssuesConsidered: locatorTruthy_(locatorPick_(row,["EvictionIssuesConsidered"])),
     affordableAmiPercent: locatorNullableNumber_(locatorPick_(row,["AffordableAMIPercent"])),
     verifiedAt: String(locatorPick_(row,["VerifiedAt"]) || "").trim()
   };
+}
+
+function locatorVerifiedHousingType_(row) {
+  const category=String(locatorPick_(row,["HousingType"])||"").trim().toLowerCase();
+  if (["conventional","market rate","market-rate"].indexOf(category)>=0) return "Conventional";
+  if (["affordable","income restricted","income-restricted"].indexOf(category)>=0) return "Affordable";
+  if (["55+","senior 55+","55 plus","55-plus"].indexOf(category)>=0) return "55+";
+  if (["student","student housing"].indexOf(category)>=0) return "Student";
+  if (String(locatorPick_(row,["AffordableProgram"])||"").trim()) return "Affordable";
+  return ""; // Do not assume conventional, 55+, student, or second-chance support.
+}
+
+// Broad public area labels must be manually approved; do not infer from a
+// community name, address or approximate map coordinate.
+function locatorPublicAreaLabel_(row) {
+  if (!locatorTruthy_(locatorPick_(row,["PublicAreaLabelApproved"]))) return "";
+  const value = String(locatorPick_(row,["PublicAreaLabel"])||"").trim();
+  if (value === "Downtown" || value === "Midtown" || value === "Uptown") return value;
+  // Accept broad, directional area labels (e.g. South Austin / Northwest Houston).
+  // No numbered street addresses or property-style marketing labels.
+  if (!/^(?:North|South|East|West|Central|Northeast|Northwest|Southeast|Southwest|Downtown|Uptown|Midtown) [A-Za-z][A-Za-z .'-]{2,45}$/i.test(value)) return "";
+  if (/\b(?:apartment|apartments|residence|residences|leasing|property|unit|tower|loft|lofts)\b/i.test(value)) return "";
+  return value.slice(0,55);
 }
 
 function locatorTruthy_(value) {
@@ -6659,6 +6690,7 @@ function locatorPublicSubmitCustomSearch_(request) {
     throw new Error("Name, email, phone, preferred area and maximum rent are required.");
   const allowed=["Credit concerns","Rental debt / eviction questions","Criminal-record screening questions","Income qualification","Limited rental history"];
   const flags=Array.isArray(request.screeningFlags)?request.screeningFlags.filter(function(x){return allowed.indexOf(String(x))>=0;}).slice(0,5):[];
+  const assistanceType=["general","urgent","agent"].indexOf(String(request.assistanceType||"general"))>=0?String(request.assistanceType||"general"):"general";
   const incomeRange=String(request.incomeRange||"");
   if (["","Below $30k","$30k–$49k","$50k–$74k","$75k–$99k","$100k+","Prefer not to say"].indexOf(incomeRange)<0)
     throw new Error("Invalid income range.");
@@ -6702,6 +6734,7 @@ function locatorPublicSubmitCustomSearch_(request) {
   try {
     const agent=LOCATOR_MAIL_IDENTITY.replyTo;
     const body=["New custom apartment search: "+id,"Client: "+first+" "+last,"Email: "+email,"Phone: "+phone,
+      "Assistance requested: "+(assistanceType==="urgent"?"URGENT - quick move-in":assistanceType==="agent"?"Contact agent":"General apartment search"),
       "Desired area: "+area,"Max rent: $"+maxRent,"Beds: "+(beds===null?"Any":beds),"Move-in: "+String(request.moveInDate||""),
       "Optional income range: "+incomeRange,"Self-disclosed general screening topics: "+flags.join(", "),
       "Automatic matches: "+matches.map(function(x){return x.row.floorplanId;}).join(", "),"Status: "+status].join("\n");

@@ -50,7 +50,7 @@
 
   function nav(){
     const brand=escapeHtml((window.APARTMENT_SITE_CONFIG||{}).brandName||"Real Estate");
-    return `<header class="site-header"><nav class="nav"><a class="brand" href="${escapeHtml(siteUrl())}">${brand}</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="siteNavLinks">Menu</button><div id="siteNavLinks" class="nav-links">${navLink("listings/","Listings")}${navLink("services/","Services")}${navLink("approval-help/","Credit / Lease Help")}${navLink("affordable-housing/","Affordable Housing")}${navLink("about/","About")}${navLink("custom-search/","Free Custom Search")}${navLink("schedule-tour/","Schedule Tour")}</div></nav></header>`;
+    return `<header class="site-header"><nav class="nav"><a class="brand" href="${escapeHtml(siteUrl())}">${brand}</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="siteNavLinks">Menu</button><div id="siteNavLinks" class="nav-links">${navLink("listings/","Listings")}${navLink("services/","Services")}${navLink("about/","About")}${navLink("custom-search/","Free Custom Search")}${navLink("schedule-tour/","Schedule Tour")}</div></nav></header>`;
   }
 
   function footer(){
@@ -64,7 +64,7 @@
     return `<footer class="footer"><div class="footer-inner"><nav class="footer-links" aria-label="Legal and consumer disclosures">
       <a href="${escapeHtml(siteUrl("privacy/"))}">Privacy Policy</a>
       <a href="${escapeHtml(siteUrl("terms/"))}">Terms & Conditions</a>${iabsLink}${cnLink}</nav>
-      <p>Pricing, availability, promotions and screening decisions are controlled by the housing provider. A tour request is not a confirmed booking.</p></div></footer>`;
+      <p>Pricing, availability, promotions and screening decisions are controlled by the housing provider. A tour request is not a confirmed booking.</p><a href="https://apartment-platform-api.avrey-platform.workers.dev/media">Owner login</a></div></footer>`;
   }
   function openTourModal(id){
     if(!id)return;
@@ -123,16 +123,46 @@
       .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80) || "apartment";
   }
 
-  function listingPath(listing){
-    const city=slugify(listing?.city||"texas");
-    const community=slugify(listing?.communityName||"apartment-community");
-    const floorplan=slugify(listing?.floorplanName||"floorplan");
-    const id=String(listing?.floorplanId||"").replace(/^FP-/i,"").replace(/[^A-Za-z0-9]/g,"").slice(0,10).toLowerCase() || "listing";
-    return `apartments/${city}/${community}/${floorplan}-${id}/`;
+  // Public listing labels use only broad geography and bedroom count. Never
+  // fall back to mapped community names or marketing floorplan names.
+  function publicLocation(listing){
+    const area=String(listing?.areaLabel||"").trim();
+    const city=String(listing?.city||"").trim();
+    const state=String(listing?.state||"").trim();
+    const zip=String(listing?.zip||"").trim();
+    const areaPart=area&&area.toLowerCase()!==city.toLowerCase()?area:"";
+    const town=[areaPart,city].filter(Boolean).join(", ");
+    const region=[state,zip].filter(Boolean).join(" ");
+    return [town,region].filter(Boolean).join(", ")||"Area pending verification";
   }
 
-  function listingUrl(listing){ return siteUrl(listingPath(listing)); }
+  function publicListingTitle(listing){
+    const n=Number(listing?.beds);
+    const beds=listing?.beds;
+    const generic=beds!==null&&beds!==undefined&&beds!==""&&Number.isInteger(n)&&n>=0&&n<=8
+      ? (n===0?"Studio apartment":n+"-bedroom apartment")
+      : "Apartment";
+    return generic+" in "+publicLocation(listing);
+  }
+
+  function listingPath(listing){
+    const city=slugify(listing?.city||"texas");
+    const zip=/^\d{5}(?:-\d{4})?$/.test(String(listing?.zip||""))?String(listing.zip).slice(0,5):"area";
+    const id=String(listing?.floorplanId||"").replace(/^FP-/i,"").replace(/[^A-Za-z0-9]/g,"").slice(0,10).toLowerCase() || "listing";
+    return `apartments/${city}/${zip}/apartment-${id}/`;
+  }
+
+  // Shareable on-site floorplan preview works even before generated SEO
+  // pages have been published. Never link to the external property website.
+  function listingUrl(listing){
+    return siteUrl("listings/?floorplan-id="+encodeURIComponent(String(listing?.floorplanId||"")));
+  }
 
   document.addEventListener("DOMContentLoaded",renderShell);
-  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
+  // Shared entry dialog applies to every public page without copying markup.
+  const authScript=document.createElement("script");
+  authScript.src=siteUrl("assets/js/renter-portal.js");
+  authScript.defer=true;
+  document.head.appendChild(authScript);
+  window.SiteUtil={escapeHtml,money,renderShell,siteUrl,scheduleUrl,listingPath,listingUrl,publicLocation,publicListingTitle,slugify,openTourModal,mountTurnstile,siteBase:SITE_BASE.href};
 })();
