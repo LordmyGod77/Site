@@ -20,13 +20,14 @@ function areaMap(x,{exact=false}={}){
   if(!m||!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180){
     return '<div class="ap-map-empty">Area map available after location verification. '+esc()(SiteUtil.publicLocation(x))+'</div>';
   }
-  const radiusMiles=exact?1.5:12;
-  const dlat=radiusMiles/69.0;
-  const dlon=radiusMiles/(69*Math.max(0.2,Math.cos(latitude*Math.PI/180)));
+  const radiusMiles=exact?1.5:Math.max(2,Math.min(5,Number(m.radiusMiles)||2));
+  const frameRadiusMiles=exact?radiusMiles*1.3:radiusMiles*1.65;
+  const dlat=frameRadiusMiles/69.0;
+  const dlon=frameRadiusMiles/(69*Math.max(0.2,Math.cos(latitude*Math.PI/180)));
   const bbox=[longitude-dlon,latitude-dlat,longitude+dlon,latitude+dlat].map(n=>n.toFixed(5)).join(",");
   const source="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent(bbox)+"&layer=mapnik";
   const circle=exact?'<div class="ap-map-pin" aria-label="Exact verified location">📍</div>':'<div class="ap-map-circle" aria-hidden="true"></div>';
-  const caption=exact?"Exact property location · Visible to verified account":"Approximate 12-mile search area · No exact property pin";
+  const caption=exact?"Exact property location · Authorized guest-card access only":"Approximate 2-mile area · Exact address private";
   return '<div class="ap-map"><iframe loading="lazy" tabindex="-1" aria-hidden="true" referrerpolicy="no-referrer" title="Area map" src="'+esc()(source)+'"></iframe>'+circle+'<div class="ap-map-caption">'+caption+'</div></div>';
 }
 function approvedMedia(x){
@@ -72,7 +73,7 @@ function listingCard(x){
     '<div class="rent">'+SiteUtil.money(x.netEffectiveRent||x.baseRent)+'</div>'+
     (x.specialSummary?'<div class="listing-meta"><strong>Special:</strong> '+u(x.specialSummary)+'</div>':'')+
     '<div class="badges">'+badges.join("")+'</div>'+
-    areaMap(x)+'<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">Enlarge map / View exact location when signed in</button>'+
+    areaMap(x)+'<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">Enlarge approximate area · Request exact location</button>'+
     '<div class="listing-actions"><a class="btn secondary" href="'+u(detail)+'">View floorplan</a>'+
     '<button class="btn primary tour-modal-trigger" type="button" data-floorplan-id="'+fid+'">Schedule tour</button>'+
     '<a class="btn secondary" href="../custom-search/?help=assistance">Ask agent</a>'+
@@ -157,7 +158,7 @@ async function areaDialog(floorplanId){
   const heading=SiteUtil.publicListingTitle(x);
   const exactAvailable=false; // Private location disclosure awaits verified renter sign-in.
   d.innerHTML='<button class="modal-close" type="button" aria-label="Close map">×</button><h2>'+esc()(heading)+'</h2>'+
-    '<p class="ap-entry-notice" id="apMapInfo">Map shows a broad search area, not the exact apartment location.</p>'+areaMap(x);
+    '<p class="ap-entry-notice" id="apMapInfo">Map shows a small approximate area, not the apartment address or exact position.</p>'+areaMap(x);
   d.querySelector(".modal-close").onclick=()=>d.close();
   if(!d.open)d.showModal();
   if(exactAvailable){
