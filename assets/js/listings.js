@@ -73,7 +73,7 @@ function listingCard(x){
     '<div class="rent">'+SiteUtil.money(x.netEffectiveRent||x.baseRent)+'</div>'+
     (x.specialSummary?'<div class="listing-meta"><strong>Special:</strong> '+u(x.specialSummary)+'</div>':'')+
     '<div class="badges">'+badges.join("")+'</div>'+
-    areaMap(x)+'<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">Enlarge approximate area · Request exact location</button>'+
+    areaMap(x)+'<button class="ap-media-map-trigger" type="button" data-area-map="'+fid+'">Enlarge approximate area map</button>'+
     '<div class="listing-actions"><a class="btn secondary" href="'+u(detail)+'">View floorplan</a>'+
     '<button class="btn primary tour-modal-trigger" type="button" data-floorplan-id="'+fid+'">Schedule tour</button>'+
     '<a class="btn secondary" href="../custom-search/?help=assistance">Ask agent</a>'+
@@ -158,7 +158,7 @@ async function areaDialog(floorplanId){
   const heading=SiteUtil.publicListingTitle(x);
   const exactAvailable=false; // Private location disclosure awaits verified renter sign-in.
   d.innerHTML='<button class="modal-close" type="button" aria-label="Close map">×</button><h2>'+esc()(heading)+'</h2>'+
-    '<p class="ap-entry-notice" id="apMapInfo">Map shows a small approximate area, not the apartment address or exact position.</p>'+areaMap(x);
+    '<p class="ap-entry-notice" id="apMapInfo">This is an approximate area, not a property pin. The exact address requires approved renter registration and guest-card processing; it is not available publicly.</p>'+areaMap(x);
   d.querySelector(".modal-close").onclick=()=>d.close();
   if(!d.open)d.showModal();
   if(exactAvailable){
