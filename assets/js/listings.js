@@ -20,14 +20,16 @@ function areaMap(x,{exact=false}={}){
   if(!m||!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180){
     return '<div class="ap-map-empty">Area map available after location verification. '+esc()(SiteUtil.publicLocation(x))+'</div>';
   }
-  const radiusMiles=exact?1.5:Math.max(2,Math.min(5,Number(m.radiusMiles)||2));
-  const frameRadiusMiles=exact?radiusMiles*1.3:radiusMiles*1.65;
+  // Keep the map center coarse; enlarge the anonymous coverage to about 4–5 miles.
+  // A wider viewport plus a diffuse, smaller-looking halo avoids implying an exact boundary.
+  const radiusMiles=exact?1.5:4.5;
+  const frameRadiusMiles=exact?radiusMiles*1.3:radiusMiles*2.3;
   const dlat=frameRadiusMiles/69.0;
   const dlon=frameRadiusMiles/(69*Math.max(0.2,Math.cos(latitude*Math.PI/180)));
   const bbox=[longitude-dlon,latitude-dlat,longitude+dlon,latitude+dlat].map(n=>n.toFixed(5)).join(",");
   const source="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent(bbox)+"&layer=mapnik";
   const circle=exact?'<div class="ap-map-pin" aria-label="Exact verified location">📍</div>':'<div class="ap-map-circle" aria-hidden="true"></div>';
-  const caption=exact?"Exact property location · Authorized guest-card access only":"Approximate 2-mile area · Exact address private";
+  const caption=exact?"Exact property location · Authorized guest-card access only":"Approximate 4–5-mile area · Exact address private";
   return '<div class="ap-map"><iframe loading="lazy" tabindex="-1" aria-hidden="true" referrerpolicy="no-referrer" title="Area map" src="'+esc()(source)+'"></iframe>'+circle+'<div class="ap-map-caption">'+caption+'</div></div>';
 }
 function approvedMedia(x){
@@ -42,18 +44,51 @@ function approvedMedia(x){
     .slice(0,100).map(m=>({type:m.type,url:imageUrl(m.url)}));
 }
 function mediaPanel(x){
-  const m=approvedMedia(x),fid=esc()(x.floorplanId||"");
-  if(!m.length)return '<div class="ap-media-empty"><div><strong>Photos coming soon</strong><br><span>Only images and videos approved for public display appear here.</span></div></div>';
-  const active=mediaSlideIndex.get(x.floorplanId)||0;
-  const index=Math.min(active,m.length-1);
-  const current=m[index];
-  const poster=m.find(item=>item.type==="image")?.url||"";
-  const view=current.type==="video"
-    ?'<video controls preload="metadata" playsinline '+(poster?'poster="'+esc()(poster)+'" ':'')+'src="'+esc()(current.url)+'" aria-label="Apartment video preview">Your browser does not support video.</video>'
-    :'<img loading="lazy" decoding="async" src="'+esc()(current.url)+'" alt="Approved apartment photo '+(index+1)+'">';
+  const all=approvedMedia(x),photos=all.filter(m=>m.type==="image"),videos=all.filter(m=>m.type==="video");
+  const fid=esc()(x.floorplanId||"");
+  if(!all.length)return '<div class="ap-media-empty"><strong>Photos coming soon</strong></div>';
+  const raw=mediaSlideIndex.get(x.floorplanId)||0;
+  const index=Math.min(raw,Math.max(0,photos.length-1));
+  const poster=photos[index]?.url||"";
+  const view=photos.length
+    ?'<img loading="lazy" decoding="async" src="'+esc()(poster)+'" alt="Approved apartment photo '+(index+1)+'">'
+    :'<div class="ap-video-placeholder" aria-label="Apartment video tour available"><span aria-hidden="true">▶</span><strong>Video walkthrough available</strong></div>';
+  const tabs='<div class="ap-media-tabs" aria-label="Property media">'+
+    (photos.length?'<span class="ap-media-tab active">Photos ('+photos.length+')</span>':'')+
+    (videos.length?'<button class="ap-media-tab video" type="button" data-video-open="'+fid+'" aria-label="Watch apartment video">▶ Watch video'+(videos.length>1?' ('+videos.length+')':'')+'</button>':'')+
+    '</div>';
   return '<div class="ap-media" data-media-id="'+fid+'">'+view+
-    (m.length>1?'<button class="ap-arrow ap-prev" type="button" data-media-step="-1" aria-label="Previous media">‹</button><button class="ap-arrow ap-next" type="button" data-media-step="1" aria-label="Next media">›</button>':'')+
-    '<span class="ap-counter">'+(index+1)+' / '+m.length+(current.type==="video"?" · Video":" · Photo")+'</span></div>';
+    (photos.length>1?'<button class="ap-arrow ap-prev" type="button" data-media-step="-1" aria-label="Previous photo">‹</button><button class="ap-arrow ap-next" type="button" data-media-step="1" aria-label="Next photo">›</button>':'')+
+    (photos.length?'<span class="ap-counter">'+(index+1)+' / '+photos.length+' photos</span>':'')+
+    tabs+'</div>';
+}
+function openVideoDialog(floorplanId,index=0){
+  const x=allListings.find(item=>item.floorplanId===floorplanId);
+  if(!x)return;
+  const videos=approvedMedia(x).filter(m=>m.type==="video");
+  if(!videos.length)return;
+  const chosen=Math.max(0,Math.min(videos.length-1,index));
+  let d=document.getElementById("apVideoDialog");
+  if(!d){
+    d=document.createElement("dialog");d.id="apVideoDialog";d.className="ap-video-dialog";
+    document.body.append(d);
+  }
+  // Never autoplay; explicitly unload the remote video when the dialog closes.
+  d.innerHTML='<div class="ap-video-dialog-head"><h2>'+esc()(SiteUtil.publicListingTitle(x))+' · Video</h2>'+
+    '<button class="modal-close" type="button" aria-label="Close video">×</button></div>'+
+    '<video controls preload="metadata" playsinline controlslist="nodownload" '+
+    'poster="'+esc()(approvedMedia(x).find(m=>m.type==="image")?.url||"")+'" '+
+    'src="'+esc()(videos[chosen].url)+'" aria-label="Approved apartment walkthrough video">Video unavailable</video>'+
+    '<div class="ap-video-dialog-foot"><span>Video '+(chosen+1)+' of '+videos.length+'</span>'+
+    (videos.length>1?'<button type="button" class="btn secondary" data-next-video="'+esc()(floorplanId)+'" data-next-index="'+((chosen+1)%videos.length)+'">Next video</button>':'')+
+    '</div>';
+  d.querySelector(".modal-close").onclick=()=>d.close();
+  d.addEventListener("close",()=>{const video=d.querySelector("video");if(video){video.pause();video.removeAttribute("src");video.load();}},{once:true});
+  d.querySelector("video").addEventListener("error",()=>{
+    const note=d.querySelector(".ap-video-dialog-foot span");
+    if(note)note.textContent="Video is temporarily unavailable. Try another video or contact the agent.";
+  });
+  if(!d.open)d.showModal();
 }
 function listingCard(x){
   const u=esc(),badges=[];
@@ -89,18 +124,25 @@ function applyFilters(){
     if(requestedFloorplan&&x.floorplanId!==requestedFloorplan)return false;
     const hay=[x.areaLabel,x.city,x.state,x.zip,SiteUtil.publicListingTitle(x)].filter(Boolean).join(" ").toLowerCase();
     if(q&&!hay.includes(q))return false;
-    if(city&&x.city!==city)return false;
-    if(beds!==""&&((beds==="4"&&Number(x.beds)<4)||(beds!=="4"&&Number(x.beds)!==Number(beds))))return false;
-    const rent=Number(x.netEffectiveRent||x.baseRent||0);
-    if(max&&rent&&rent>max)return false;
+    if(city&&String(x.city||"").trim().toLowerCase()!==city.trim().toLowerCase())return false;
+    // Missing bedrooms must never be treated as a studio (Number(null) === 0).
+    const bedroom=x.beds===null||x.beds===undefined||x.beds===""?null:Number(x.beds);
+    if(beds!==""&&(bedroom===null||!Number.isFinite(bedroom)||
+      (beds==="4"?bedroom<4:bedroom!==Number(beds))))return false;
+    // Never represent an unpriced listing as within a renter's rent ceiling.
+    const rentValue=x.netEffectiveRent??x.baseRent;
+    const rent=rentValue===null||rentValue===undefined||rentValue===""?null:Number(rentValue);
+    if(max&&(rent===null||!Number.isFinite(rent)||rent<=0||rent>max))return false;
     if(available&&!x.availableNow)return false;
+    if(document.getElementById("hasVideo")?.checked&&!approvedMedia(x).some(m=>m.type==="video"))return false;
     if(type&&housingTypeOf(x)!==type)return false;
     if(affordable&&housingTypeOf(x)!=="Affordable"&&!x.support?.affordableProgram)return false;
     if(credit&&!supportYes(x.support,"creditIssuesConsidered"))return false;
     if(eviction&&!supportYes(x.support,"evictionIssuesConsidered"))return false;
     return true;
   });
-  document.getElementById("count").textContent=rows.length+" apartment option"+(rows.length===1?"":"s")+" found";
+  document.getElementById("count").textContent=rows.length+" apartment option"+(rows.length===1?"":"s")+" found"+
+    (max?" · Under $"+max.toLocaleString()+" (unpriced options excluded)":"");
   const shown=rows.slice(0,visibleLimit);
   document.getElementById("listingGrid").innerHTML=rows.length?shown.map(listingCard).join(""):
     '<div class="empty-state">No matches for this combination. A property with unknown policies may still consider you. <a href="../custom-search/?help=assistance">Ask for free assistance.</a></div>';
@@ -143,9 +185,11 @@ async function loadListings(){
     status.classList.add("hidden");
     const notice=document.getElementById("mediaSourceNotice");
     if(notice){
-      notice.textContent=api
-        ?"Only configured, successfully scraped, verified-location listings and approved media appear here. Full details require authorization."
-        :"Using the existing listing catalog while the verified Cloudflare feed is prepared. Photos await confirmed public-use rights; screening details should be reconfirmed with each property.";
+      notice.textContent=mediaApi
+        ?"Photos and videos are approved for public viewing. Rent, availability and eligibility must be reconfirmed; screening and housing-type filters only include verified information."
+        :api
+          ?"Only configured, successfully scraped, verified-location listings appear here. Full details require authorization."
+          :"Using the existing listing catalog while the verified Cloudflare feed is prepared. Photos await confirmed public-use rights.";
       notice.classList.remove("hidden");
     }
     applyFilters();
@@ -208,6 +252,22 @@ document.addEventListener("error",e=>{
   root.replaceWith(replacement.firstElementChild);
 },true);
 document.addEventListener("click",async e=>{
+  const openVideo=e.target.closest("[data-video-open]");
+  if(openVideo){openVideoDialog(openVideo.dataset.videoOpen);return;}
+  const nextVideo=e.target.closest("[data-next-video]");
+  if(nextVideo){
+    const d=document.getElementById("apVideoDialog");if(d?.open)d.close();
+    openVideoDialog(nextVideo.dataset.nextVideo,Number(nextVideo.dataset.nextIndex)||0);
+    return;
+  }
+  const reset=e.target.closest("#clearListingFilters");
+  if(reset){
+    for(const id of ["q","city","beds","maxRent","housingType"]){const node=document.getElementById(id);if(node)node.value="";}
+    for(const id of ["available","creditIssues","evictionIssues","affordable","hasVideo"]){
+      const node=document.getElementById(id);if(node)node.checked=false;
+    }
+    visibleLimit=24;applyFilters();return;
+  }
   const tour=e.target.closest(".tour-modal-trigger");
   if(tour){SiteUtil.openTourModal(tour.dataset.floorplanId);return;}
   const share=e.target.closest(".share-listing");
@@ -237,7 +297,7 @@ document.addEventListener("click",async e=>{
   if(map){areaDialog(map.dataset.areaMap);return;}
 });
 document.addEventListener("DOMContentLoaded",()=>{
-  ["q","city","beds","maxRent","housingType","available","creditIssues","evictionIssues","affordable"].forEach(id=>{
+  ["q","city","beds","maxRent","housingType","available","creditIssues","evictionIssues","affordable","hasVideo"].forEach(id=>{
     const field=document.getElementById(id);
     field?.addEventListener(id==="q"||id==="maxRent"?"input":"change",()=>{visibleLimit=24;applyFilters();});
   });
