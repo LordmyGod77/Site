@@ -117,21 +117,38 @@
 .ap-help-dialog::backdrop{background:#0c223c77}.ap-help-dialog h2{margin-top:0}.ap-help-dialog p{line-height:1.6;color:#475b67}
 .ap-help-dialog .modal-close{float:right}.ap-map{position:relative;height:220px;border-radius:12px;overflow:hidden;border:1px solid #d4dce1;background:#e7f1f1}
 .ap-map iframe{width:100%;height:100%;border:0;filter:none!important;pointer-events:none}
-.ap-map-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:74%;height:74%;border-radius:50%;border:3px solid #148646;box-shadow:0 0 0 9999px #0d85440a,0 0 0 2px #fff8;pointer-events:none;background:#12ad320d}
+.ap-map-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:49%;height:54%;border-radius:50%;border:0;box-shadow:0 0 38px 12px #16904b1c;pointer-events:none;background:radial-gradient(ellipse at center,#26a96740 0%,#29996d2e 62%,#29996d05 100%)}
 .ap-map-caption{position:absolute;bottom:8px;left:8px;right:8px;background:#fffef4ed;border-radius:8px;padding:7px 10px;font-size:11px;color:#214633;font-weight:800}
 .ap-map-empty{display:grid;place-items:center;background:#eef4f1;color:#49636a;font-size:13px;padding:15px;height:220px}
 .ap-media-map-trigger{border:0;background:#eef6f2;color:#136b38;border-radius:8px;font-size:12px;font-weight:800;padding:8px 10px;cursor:pointer}
 .ap-map-dialog{border:0;border-radius:16px;padding:18px;max-width:min(700px,96vw);width:100%;background:#fff}
 .ap-map-dialog::backdrop{background:#102130bb}.ap-map-dialog .ap-map{height:min(490px,65vh)}
-.ap-map-dialog .ap-map-circle{width:66%;height:66%}
+.ap-map-dialog .ap-map-circle{width:49%;height:54%}
 .ap-map-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);font-size:28px;filter:drop-shadow(0 1px 1px white)}
 .ap-entry-notice{font-size:13px;color:#3c6570;line-height:1.5}
 
 .ap-greeting{font-weight:800;color:#147840;font-size:17px;margin:4px 0 14px}
 
-/* Compact 12-mile area preview below each listing. */
+/* Soft ~4-5 mile approximate area preview below each listing. */
 .listing-card .ap-map{height:154px;margin-top:4px}
 .listing-card .ap-map iframe{height:154px}
 .listing-card .ap-map-caption{font-size:10px}
 #loadMoreListings{display:block;width:min(100%,410px);margin:22px auto;background:#e2f4e7;color:#115d2a;border:1px solid #c0e2ce;font-weight:800;padding:14px}
 #loadMoreListings.hidden{display:none}
+
+/* Apartment media: photos are the lightweight card hero; videos play only on request. */
+.ap-media-tabs{position:absolute;top:10px;right:10px;left:10px;display:flex;justify-content:flex-end;align-items:center;gap:7px;z-index:3;pointer-events:none}
+.ap-media-tab{display:inline-flex;align-items:center;justify-content:center;min-height:32px;max-width:100%;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:750;color:#183d32;background:#fffffff2;border:1px solid #d8e5db;box-shadow:0 3px 10px #052a211a;pointer-events:auto}
+.ap-media-tab.video{background:#146d49ee;border:1px solid #146d49;color:white;cursor:pointer}
+.ap-media-tab.video:hover,.ap-media-tab.video:focus-visible{background:#105438}
+.ap-video-placeholder{height:226px;display:flex;gap:8px;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#16443c,#193c64);color:white;text-align:center}
+.ap-video-placeholder span{font-size:35px}.ap-video-placeholder strong{font-size:15px}
+.ap-video-dialog{width:min(94vw,920px);max-height:95vh;padding:16px 18px;border:0;border-radius:14px;background:#fff;color:#19362f;box-shadow:0 24px 85px #0007}
+.ap-video-dialog::backdrop{background:#091e2de0}
+.ap-video-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ap-video-dialog-head h2{font-size:17px;line-height:1.3;margin:0 0 12px}
+.ap-video-dialog-head .modal-close{flex:0 0 auto}
+.ap-video-dialog video{display:block;background:#172530;width:100%;max-height:min(70vh,720px);border-radius:9px}
+.ap-video-dialog-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;font-size:12px;color:#42645a}
+#clearListingFilters{margin:4px 0 0;font-size:12px}
+@media(max-width:480px){.ap-media-tabs{right:6px;left:6px;top:6px;gap:4px}.ap-media-tab{font-size:11px;padding:5px 8px}.ap-video-dialog{padding:11px}.ap-video-dialog-head h2{font-size:14px}}
