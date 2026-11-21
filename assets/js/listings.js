@@ -83,8 +83,9 @@ function openVideoDialog(floorplanId,index=0){
     (videos.length>1?'<button type="button" class="btn secondary" data-next-video="'+esc()(floorplanId)+'" data-next-index="'+((chosen+1)%videos.length)+'">Next video</button>':'')+
     '</div>';
   d.querySelector(".modal-close").onclick=()=>d.close();
-  d.addEventListener("close",()=>{const video=d.querySelector("video");if(video){video.pause();video.removeAttribute("src");video.load();}},{once:true});
-  d.querySelector("video").addEventListener("error",()=>{
+  const activeVideo=d.querySelector("video");
+  d.addEventListener("close",()=>{if(activeVideo){activeVideo.pause();activeVideo.removeAttribute("src");activeVideo.load();}},{once:true});
+  activeVideo.addEventListener("error",()=>{
     const note=d.querySelector(".ap-video-dialog-foot span");
     if(note)note.textContent="Video is temporarily unavailable. Try another video or contact the agent.";
   });
